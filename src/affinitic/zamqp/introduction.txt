@@ -1,0 +1,43 @@
+Introduction
+============
+
+AMQP
+----
+
+The Advanced Message Queuing Protocol [#amqp]_ is a very performant protocol that is implemented
+in many platform, many languages and thus can exchange messages between many framework/applications.
+
+The most known AMQP open source servers are: `RabbitMQ <http://www.rabbitmq.com>`_ and `Qpid <http://qpid.apache.org/>`_
+
+Existing Python AMQP libraries
+------------------------------
+
+Python itself has different libraries available that implement the protocol. Here are the two most known libraries:
+
+    * `amqplib <http://pypi.python.org/pypi/amqplib>`_
+    * `txAMQP <http://pypi.python.org/pypi/txAMQP>`_
+
+As you might not want to deal with a "low level" API, there is a higher level API available via
+`carrot <http://pypi.python.org/pypi/carrot>`_.
+
+Why this package ?
+------------------
+
+AFAIK Zope 2 unfortunately doesn't have any integration (Twisted does so I guess it might be
+easier to implement it with Zope 3).
+
+The іdea behind this project is to provide a messaging solution together with the observer pattern
+in Zope [#events]_. An image might help to understand what we try to implement here:
+
+.. image:: zamqp.png
+
+As you might also see, AMQP also permit asynchronous events in Zope 2.
+
+.. rubric:: Footnotes
+
+.. [#amqp] If needed here are some nice links that might help you to understand what AMQP is about:
+
+    * http://blogs.digitar.com/jjww/2009/01/rabbits-and-warrens/
+    * http://amqp.org
+
+.. [#events] http://wiki.zope.org/zope3/events.html
