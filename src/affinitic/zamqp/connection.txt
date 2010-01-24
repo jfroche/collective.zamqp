@@ -1,0 +1,12 @@
+AMQP Connection
+===============
+
+An AMQP connection is a utility that enable connections to an AMQP server via a specific virtual host.
+
+Interfaces
+----------
+
+.. autointerface:: affinitic.zamqp.interfaces.Connection
+    :show-inheritance:
+    :inherited-members:
+

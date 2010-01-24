@@ -33,6 +33,9 @@ in Zope [#events]_. An image might help to understand what we try to implement h
 
 As you might also see, AMQP also permit asynchronous events in Zope 2.
 
+We use ``carrot`` to send/receive messages and enable consumers in separate threads within
+Zope.
+
 .. rubric:: Footnotes
 
 .. [#amqp] If needed here are some nice links that might help you to understand what AMQP is about:

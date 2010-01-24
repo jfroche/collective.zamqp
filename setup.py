@@ -24,6 +24,7 @@ setup(name='affinitic.zamqp',
       extras_require=dict(
             docs=['z3c.recipe.sphinxdoc',
                   'collective.sphinx.includechangelog',
+                  'repoze.sphinx.autointerface',
                   'collective.sphinx.includedoc']),
       install_requires=[
           'setuptools',
