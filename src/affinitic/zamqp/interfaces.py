@@ -10,7 +10,7 @@ $Id: event.py 67630 2006-04-27 00:54:03Z jfroche $
 from zope.interface import Interface, Attribute
 
 
-class Connection(Interface):
+class AMQPConnection(Interface):
     """
     AMQP Broker connection to an AMQP server via a specific virtual host
     """

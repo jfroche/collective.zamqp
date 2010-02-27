@@ -8,4 +8,6 @@
         for="zope.app.appsetup.interfaces.IDatabaseOpenedWithRootEvent"
         handler=".service.bootStrapSubscriber"/>
 
+    <include package=".browser"/>
+
 </configure>

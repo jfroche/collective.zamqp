@@ -1,0 +1,13 @@
+<configure xmlns="http://namespaces.zope.org/zope"
+           xmlns:browser="http://namespaces.zope.org/browser"
+           i18n_domain="affinitic.zamqp">
+
+  <browser:page
+    for="*"
+    name="consume"
+    class=".consumer.ConsumerView"
+    permission="zope.Public"
+    />
+
+</configure>
+

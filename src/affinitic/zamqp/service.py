@@ -27,6 +27,7 @@ def getAutostartServiceNames():
     """get a list of services to start"""
 
     config = getConfiguration().product_config
+    serviceNames = []
     if config is not None:
         task_config = config.get('affinitic.zamqp', None)
         if task_config:
@@ -44,7 +45,7 @@ class ConsumerProcessor(object):
         self.waitTime = waitTime
 
     def processNext(self):
-        self.call('acl_users2')
+        self.call('consume')
 
     def call(self, method, args=(), errorValue=ERROR_MARKER):
         path = [method] + self.servicePath[:]
@@ -117,6 +118,7 @@ def bootStrapSubscriber(event):
         #servicePath = [path for path in self.getPhysicalPath() if path]
         consumer = ConsumerService()
         consumer.startProcessing(db)
+    print 'out'
 #        rootServices = list(rootSM.getUtilitiesFor(interfaces.ITaskService))
 #
 #        for site in sites:

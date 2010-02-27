@@ -5,7 +5,7 @@ AMQP
 ----
 
 The Advanced Message Queuing Protocol [#amqp]_ is a very performant protocol that is implemented
-in many platform, many languages and thus can exchange messages between many framework/applications.
+in many platforms, many languages and thus can exchange messages between many framework/applications.
 
 The most known AMQP open source servers are: `RabbitMQ <http://www.rabbitmq.com>`_ and `Qpid <http://qpid.apache.org/>`_
 
@@ -33,8 +33,17 @@ in Zope [#events]_. An image might help to understand what we try to implement h
 
 As you might also see, AMQP also permit asynchronous events in Zope 2.
 
-We use ``carrot`` to send/receive messages and enable consumers in separate threads within
+Dependencies
+------------
+
+We use `carrot <http://pypi.python.org/pypi/carrot>`_ to send/receive messages and enable consumers in separate threads within
 Zope.
+
+We tested this package with:
+
+    * Zope 2.12
+    * `five.dbevent <http://pypi.python.org/pypi/five.dbevent>`_ to add our event subscribers on Zope database initialization
+    * `RabbitMQ <http://www.rabbitmq.com>`_
 
 .. rubric:: Footnotes
 
