@@ -30,5 +30,4 @@ setup(name='affinitic.zamqp',
           'setuptools',
           'carrot',
           'Zope2',
-          'z3c.autoinclude',
-          'five.dbevent'])
+          'z3c.autoinclude'])
