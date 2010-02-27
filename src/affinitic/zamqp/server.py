@@ -13,8 +13,6 @@ import socket
 from ZServer.ClockServer import ClockServer, LogHelper
 from ZServer.PubCore import handle
 from ZServer.AccessLogger import access_logger
-from carrot.messaging import Consumer
-from carrot.connection import BrokerConnection
 
 
 class ZAMQPConsumerServer(ClockServer):
@@ -27,7 +25,7 @@ class ZAMQPConsumerServer(ClockServer):
         self.user = user
         self.password = password
         self.host = host
-        self.method = 'consume'
+        self.method = 'Plone/consume'
         self.connection = amqpconnection
         self.logger = LogHelper(access_logger)
         h = self.headers = []
@@ -45,27 +43,14 @@ class ZAMQPConsumerServer(ClockServer):
         self.log_info('ZAMQP Consumer Server started')
         self.started = False
         self.zhandler = handle
-        self.createConsumer()
-
-    def createConsumer(self):
-
-        def import_feed_callback(message_data, message):
-            req, zreq, resp = self.get_requests_and_response()
-            feed_url = message_data["import_feed"]
-            print("Got feed import message for: %s" % feed_url)
-            zreq.args = (message_data, message)
-            self.zhandler('Zope2', zreq, resp)
-        self.conn = BrokerConnection(hostname="localhost", port=5672,
-                                userid="test", password="test", virtual_host="test")
-        self.consumer = Consumer(connection=self.conn, queue="feed",
-                            exchange="feed", routing_key="importer")
-        self.consumer.register_callback(import_feed_callback)
 
     def readable(self):
-        while 1:
-            msg = self.consumer.fetch(enable_callbacks=True)
-            if msg is None:
-                break
+        # generate a request at most once every self.period seconds
+        if not self.started:
+            req, zreq, resp = self.get_requests_and_response()
+            zreq.args = (self.connection,)
+            self.zhandler('Zope2', zreq, resp)
+            self.started = True
         return False
 
     def clean_shutdown_control(self, phase, time_in_this_phase):

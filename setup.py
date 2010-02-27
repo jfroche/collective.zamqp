@@ -30,4 +30,5 @@ setup(name='affinitic.zamqp',
           'setuptools',
           'carrot',
           'Zope2',
+          'grokcore.component',
           'z3c.autoinclude'])
