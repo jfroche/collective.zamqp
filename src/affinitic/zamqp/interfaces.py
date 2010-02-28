@@ -11,7 +11,7 @@ from zope.interface import Interface, Attribute
 from zope.component.interfaces import IObjectEvent
 
 
-class IAMQPConnection(Interface):
+class IBrokerConnection(Interface):
     """
     AMQP Broker connection to an AMQP server via a specific virtual host
     """

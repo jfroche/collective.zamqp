@@ -7,11 +7,14 @@ Copyright by Affinitic sprl
 
 $Id: event.py 67630 2006-04-27 00:54:03Z jfroche $
 """
+from time import sleep
 from zope.interface import Interface
 import grokcore.component as grok
 from zope.component import provideHandler
 
-from affinitic.zamqp.interfaces import IConsumer, IArrivedMessage
+from affinitic.zamqp.consumer import Consumer
+from affinitic.zamqp.connection import BrokerConnection
+from affinitic.zamqp.interfaces import IArrivedMessage
 
 
 class IFeedMessage(Interface):
@@ -19,23 +22,27 @@ class IFeedMessage(Interface):
     Feed Message marker interface
     """
 
+class TestConnection(BrokerConnection):
+    grok.name("test")
+    virtual_host = "test"
+    hostname = "localhost"
+    port = 5672
+    userid = "test"
+    password = "test"
 
-class FeedConsumer(grok.GlobalUtility):
-    grok.implements(IConsumer)
+
+class FeedConsumer(Consumer):
     grok.name('feed')
+    queue = "feed"
     exchange = 'feed'
-    exchangeType = 'direct'
-    routingKey = 'importer'
-    connectionId = 'test'
-    auto_delete = False
+    exchange_type = 'direct'
+    routing_key = 'importer'
+    connection_id = 'test'
     messageInterface = IFeedMessage
-
-    def as_dict(self):
-        return {'exchange': self.exchange,
-                'routing_key': self.routingKey}
 
 
 def handleMessage(message, event):
-    import pdb;pdb.set_trace()
+    print 'consuming %s' % message.payload
+    sleep(20)
 
 provideHandler(handleMessage, (IFeedMessage, IArrivedMessage))
