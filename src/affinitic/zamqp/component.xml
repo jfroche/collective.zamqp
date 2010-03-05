@@ -27,6 +27,12 @@
        faux request.  Could be useful if you have virtual host rules
        set up inside Zope itself. Ex: "www.example.com"
      </description>
+    </key>
+     <key name="sitePath" datatype="string">
+     <description>
+       The site path to your application (having a sitemanager)
+     </description>
      </key>
+
   </sectiontype>
 </component>

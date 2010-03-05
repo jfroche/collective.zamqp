@@ -20,12 +20,12 @@ class ZAMQPConsumerServer(ClockServer):
     SERVER_IDENT = 'Zope AMQP consumer'
     _shutdown = 0
 
-    def __init__(self, user, password, host, amqpconnection):
+    def __init__(self, user, password, host, amqpconnection, sitePath):
         asyncore.dispatcher.__init__(self)
         self.user = user
         self.password = password
         self.host = host
-        self.method = 'Plone/consume'
+        self.method = '%s/consume' % sitePath
         self.connection = amqpconnection
         self.logger = LogHelper(access_logger)
         h = self.headers = []
@@ -49,7 +49,8 @@ class ZAMQPConsumerServer(ClockServer):
         if not self.started:
             req, zreq, resp = self.get_requests_and_response()
             zreq.args = (self.connection,)
-            self.zhandler('Zope2', zreq, resp)
+            ret = self.zhandler('Zope2', zreq, resp)
+            print ret
             self.started = True
         return False
 
