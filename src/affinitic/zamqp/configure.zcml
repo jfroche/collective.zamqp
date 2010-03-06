@@ -5,6 +5,5 @@
     <includeDependencies package="." />
 
     <include package=".browser"/>
-    <include package=".tests" file="testing.zcml" />
 
 </configure>

@@ -33,11 +33,11 @@ class TestConnection(BrokerConnection):
 
 class FeedConsumer(Consumer):
     grok.name('feed')
-    queue = "feed"
-    exchange = 'feed'
+    queue = "db.foo"
+    exchange = 'db.foo'
     exchange_type = 'direct'
     routing_key = 'importer'
-    connection_id = 'test'
+    connection_id = 'cerise'
     messageInterface = IFeedMessage
 
 

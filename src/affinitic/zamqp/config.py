@@ -19,7 +19,7 @@ class ZAMQPConsumerFactory(ServerFactory):
         self.host = section.host
         self.amqpconnection = section.amqpconnection
         self.password = section.password
-        self.sitePath = section.sitePath
+        self.sitepath = section.sitepath
 
     def create(self):
-        return ZAMQPConsumerServer(self.user, self.password, self.host, self.amqpconnection, self.sitePath)
+        return ZAMQPConsumerServer(self.user, self.password, self.host, self.amqpconnection, self.sitepath)

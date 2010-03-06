@@ -29,5 +29,7 @@ setup(name='affinitic.zamqp',
       install_requires=[
           'setuptools',
           'carrot',
+          'uuid', # python < 2.5
+          #'Zope2', # python = 2.6
           'grokcore.component',
           'z3c.autoinclude'])
