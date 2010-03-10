@@ -8,6 +8,7 @@ Copyright by Affinitic sprl
 import socket
 from time import sleep
 import threading
+import transaction
 from Products.Five import BrowserView
 from zope.event import notify
 from zope.component import queryUtility, getUtilitiesFor, getUtility
@@ -36,6 +37,7 @@ class ConsumerView(BrowserView):
                                                                             message.delivery_info.get('delivery_tag'),
                                                                             message.delivery_info.get('exchange')))
         stateBeforeNotification = message._state
+        transaction.begin()
         try:
             notify(ArrivedMessage(message))
             sleep(2)
@@ -43,6 +45,7 @@ class ConsumerView(BrowserView):
             #XXX Send to Error queue ?
             pass
         else:
+            transaction.commit()
             logger.debug("Thread %s - Handled Message %s (status = '%s')" % (self.threadName,
                                                                              message.delivery_info.get('delivery_tag'),
                                                                              message._state))
@@ -50,7 +53,7 @@ class ConsumerView(BrowserView):
                 #XXX nobody used the message: error queue/dead letter queue ?
                 pass
 
-    def registerConsumer(self, connectionId):
+    def registerConsumers(self, connectionId):
         conn = getUtility(IBrokerConnection, name=connectionId)
         self.consumerSet = ConsumerSet(connection=conn)
         for name, consumerUtility in getUtilitiesFor(IConsumer):
@@ -75,10 +78,9 @@ class ConsumerView(BrowserView):
         return threading.currentThread().getName()
 
     def __call__(self, message_channel):
-        sleep(1)
         while(1):
             try:
-                self.registerConsumer(message_channel)
+                self.registerConsumers(message_channel)
                 logger.info('Consuming messages in thread %s' % self.threadName)
                 list(self.consumerSet.iterconsume())
             except (IOError, socket.error), err:

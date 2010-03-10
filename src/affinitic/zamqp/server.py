@@ -49,8 +49,10 @@ class ZAMQPConsumerServer(ClockServer):
         if not self.started:
             req, zreq, resp = self.get_requests_and_response()
             zreq.args = (self.connection,)
+            from zope.component import getUtilitiesFor
+            from affinitic.zamqp.interfaces import IConsumer
+            print [i for i in getUtilitiesFor(IConsumer)]
             ret = self.zhandler('Zope2', zreq, resp)
-            print ret
             self.started = True
         return False
 
