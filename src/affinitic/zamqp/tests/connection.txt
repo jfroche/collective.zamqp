@@ -1,0 +1,12 @@
+    >>> from affinitic.zamqp.connection import BrokerConnection
+    >>> import grokcore.component as grok
+    >>> class DummyBrokerConnection(BrokerConnection):
+    ...     grok.name('bar')
+
+    >>> from zope.component import provideUtility, createObject
+    >>> from affinitic.zamqp.interfaces import IBrokerConnection
+    >>> provideUtility(DummyBrokerConnection(), IBrokerConnection, name='bar')
+    >>> connection = createObject('AMQPBrokerConnection', 'bar')
+    >>> connection2 = createObject('AMQPBrokerConnection', 'bar')
+    >>> connection == connection2
+    False

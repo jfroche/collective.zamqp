@@ -16,9 +16,10 @@ from carrot.connection import BrokerConnection
 from carrot.messaging import Publisher as CarrotPublisher
 
 from affinitic.zamqp.interfaces import IPublisher, IBrokerConnection
+from affinitic.zamqp.transactionmanager import VTM
 
 
-class Publisher(grok.GlobalUtility, CarrotPublisher):
+class Publisher(grok.GlobalUtility, CarrotPublisher, VTM):
     grok.baseclass()
     grok.implements(IPublisher)
 
@@ -26,6 +27,43 @@ class Publisher(grok.GlobalUtility, CarrotPublisher):
         self._connection = None
         self._backend = None
         self._closed = False
+        self._queueOfPendingMessage = None
+
+    def _begin(self):
+        self._queueOfPendingMessage = []
+        # establish a connection even if the message might
+        # not be send directly
+        backend = self.backend
+
+    _sendToBroker = CarrotPublisher.send
+
+    def send(self, message_data, routing_key=None, delivery_mode=None,
+            mandatory=False, immediate=False, priority=0, content_type=None,
+            content_encoding=None, serializer=None):
+        if self.registered():
+            msgInfo = {'data': message_data,
+                       'info': {'routing_key': routing_key,
+                                'delivery_mode': delivery_mode,
+                                'mandatory': mandatory,
+                                'immediate': immediate,
+                                'priority': priority,
+                                'content_type': content_type,
+                                'content_encoding': content_encoding,
+                                'serializer': serializer}}
+            self._queueOfPendingMessage.append(msgInfo)
+        else:
+            self._sendToBroker(message_data, routing_key, delivery_mode,
+                               mandatory, immediate, priority, content_type,
+                               content_encoding, serializer)
+
+    def _finish(self):
+        for msgInfo in self._queueOfPendingMessage:
+            message_data = msgInfo['data']
+            sendInfo = msgInfo['info']
+            self._sendToBroker(message_data, **sendInfo)
+
+    def _abort(self):
+        self._queueOfPendingMessage = None
 
     @property
     def connection(self):
@@ -84,6 +122,7 @@ def usage():
 
 
 def getCommandLineConfig():
+    opts = []
     try:
         opts, args = getopt.getopt(sys.argv[1:], "ho:t:u:p:v:e:r:m:",
             ["help", "hostname=", "port=", "userid=", "password=", "virtual-host=",

@@ -21,7 +21,11 @@ setup(name='affinitic.zamqp',
       namespace_packages=['affinitic'],
       include_package_data=True,
       zip_safe=False,
+      entry_points={
+            'console_scripts': [
+                  'publishmsg = affinitic.zamqp.publisher:main']},
       extras_require=dict(
+            test=['zope.testing', 'Zope2'],
             docs=['z3c.recipe.sphinxdoc',
                   'collective.sphinx.includechangelog',
                   'repoze.sphinx.autointerface',
@@ -29,7 +33,9 @@ setup(name='affinitic.zamqp',
       install_requires=[
           'setuptools',
           'carrot',
+          'transaction',
           'five.dbevent',
+          'zope.component',
           'uuid', # python < 2.5
           #'Zope2', # python = 2.6
           'grokcore.component',

@@ -37,6 +37,9 @@ class VTM:
     def _begin(self):
         pass
 
+    def registered(self):
+        return self._v_registered
+
     def _register(self):
         if not self._v_registered:
             try:

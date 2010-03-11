@@ -18,19 +18,22 @@ class MessageWrapper(grok.Adapter, VTM):
     grok.context(IMessage)
     grok.implements(IMessageWrapper)
 
-    def __init__(self, message):
-        super(MessageWrapper, self).__init__(message)
-        self.acknoledged = False
+    acknoledged = False
 
     def ack(self):
-        print 'mark as ack'
         self.acknoledged = True
+        if not self.registered():
+            self._ackMessage()
+
+    def _ackMessage(self):
+        self.context.ack()
 
     def _finish(self):
-        print 'finish transaction'
         if self.acknoledged:
-            print 'send ack'
-            self.context.ack()
+            self._ackMessage()
+
+    def _abort(self):
+        self.acknoledged = False
 
     def __getattr__(self, name):
         try:

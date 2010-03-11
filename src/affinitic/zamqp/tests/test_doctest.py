@@ -10,26 +10,30 @@ $Id: event.py 67630 2006-04-27 00:54:03Z jfroche $
 import os
 import glob
 from zope.testing import doctest
-from Globals import package_home
 from unittest import TestSuite
-from affinitic.zamqp.tests import GLOBALS
+import zope.configuration.xmlconfig
 
 OPTIONFLAGS = (doctest.ELLIPSIS |
                doctest.NORMALIZE_WHITESPACE |
                doctest.REPORT_ONLY_FIRST_FAILURE)
+testPath = os.path.normpath(os.path.dirname(__file__))
 
 
 def list_doctests():
-    home = package_home(GLOBALS)
     return [filename for filename in
-            glob.glob(os.path.sep.join([home, '*.txt']))]
+            glob.glob(os.path.sep.join([testPath, '*.txt']))]
+
+
+def setUp(suite):
+    import affinitic.zamqp
+    zope.configuration.xmlconfig.XMLConfig('testing.zcml', affinitic.zamqp)()
 
 
 def test_suite():
     filenames = list_doctests()
-    suite = TestSuite()
-    suites = [suite.addtest(os.path.basename(filename),
+    return TestSuite([doctest.DocFileSuite(
+                            os.path.basename(filename),
+               setUp=setUp,
                optionflags=OPTIONFLAGS,
-               package='affinitic.zamqp')
-              for filename in filenames]
-    return suites
+               package='affinitic.zamqp.tests')
+              for filename in filenames])

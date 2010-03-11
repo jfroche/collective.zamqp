@@ -1,0 +1,155 @@
+Command line parsing for publisher
+----------------------------------
+
+    >>> import sys
+    >>> exitOriginal = sys.exit
+    >>> def exit(level=0):
+    ...     print '--Exit with level %s--' % level
+    >>> sys.exit = exit
+
+If you don't provide enough argument, it will print you the usage and exit::
+
+    >>> from affinitic.zamqp.publisher import getCommandLineConfig
+    >>> getCommandLineConfig()
+    Usage: publishmsg [-h | -o hostname -t port -u (userid) -p (password) -v (virtual_host) -e (exchange) -r (routing_key) -m (message)]
+    ...
+    --Exit with level 2--
+    (None, 5672, None, None, None, None, None, None)
+
+If you provide wrong arguments, it will print you the usage and exit::
+
+    >>> sys.argv = ['cmd', '--foobar']
+    >>> getCommandLineConfig()
+    option --foobar not recognized
+    Usage: publishmsg [-h | -o hostname -t port -u (userid) -p (password) -v (virtual_host) -e (exchange) -r (routing_key) -m (message)]
+    ...
+    --Exit with level 2--
+    (None, 5672, None, None, None, None, None, None)
+
+To get help, just use `publishmsg -h` or `publishmsg --help`::
+
+    >>> sys.argv = ['cmd', '-h']
+    >>> getCommandLineConfig()
+    Usage: publishmsg [-h | -o hostname -t port -u (userid) -p (password) -v (virtual_host) -e (exchange) -r (routing_key) -m (message)]
+    ...
+    --Exit with level 0--
+    (None, 5672, None, None, None, None, None, None)
+    >>> sys.exit = exitOriginal
+
+Testing if we provide the right parameter, everything is returned correctly::
+
+    >>> sys.argv = ['cmd', '-o', 'localhost', '-t', '20', '-u', 'john', '-p', 'secret',
+    ...                    '-v', 'virtual1', '-e', 'exchange1', '-r', 'routing1',
+    ...                    '-m', 'Superb Message']
+    >>> getCommandLineConfig()
+    ('localhost', '20', 'john', 'secret', 'virtual1', 'exchange1', 'routing1', 'Superb Message')
+
+    >>> sys.argv = ['cmd', '--hostname', 'localhost', '--port', '20', '--user', 'john',
+    ...                    '--password', 'secret', '--virtual-host', 'virtual1', 
+    ...                    '--exchange', 'exchange1', '--routing-key', 'routing1',
+    ...                    '--message', 'Superb Message']
+    >>> getCommandLineConfig()
+    ('localhost', '20', 'john', 'secret', 'virtual1', 'exchange1', 'routing1', 'Superb Message')
+
+Publisher and transaction
+-------------------------
+
+If the publisher is transaction aware, a message sent to the publisher will be
+transfered to the message broker once the transaction has been commited::
+
+    >>> from affinitic.zamqp.connection import BrokerConnection
+    >>> class FakeBackend(object):
+    ...
+    ...     def establish_connection(self):
+    ...         print 'establishing connection with backend'
+    ...
+    ...     def exchange_declare(self, exchange, type, durable, auto_delete):
+    ...         self.establish_connection()
+
+    >>> class DummyBrokerConnection(BrokerConnection):
+    ...     hostname = 'localhost'
+    ...     port = 12
+    ...
+    ...     def create_backend(self):
+    ...         return FakeBackend()
+
+    >>> from zope.component import provideUtility, createObject
+    >>> from affinitic.zamqp.interfaces import IBrokerConnection
+    >>> provideUtility(DummyBrokerConnection(), IBrokerConnection, name='bar')
+
+    >>> from affinitic.zamqp.publisher import Publisher
+    >>> class FakePublisher(Publisher):
+    ...
+    ...     connection_id = 'bar'
+    ...
+    ...     def _sendToBroker(self, message_data, routing_key=None, delivery_mode=None,
+    ...                       mandatory=False, immediate=False, priority=0, content_type=None,
+    ...                       content_encoding=None, serializer=None):
+    ...         print "Sending to message broker: '%s' with priority: %s " % (message_data, priority)
+
+
+    >>> import transaction
+    >>> tr = transaction.begin()
+    >>> pub = FakePublisher()
+    >>> pub._register()
+    establishing connection with backend
+    >>> pub._queueOfPendingMessage
+    []
+
+A connection is established to the Broker, but nothing is send yet::
+
+    >>> pub.send('My Message', priority=10)
+    >>> from pprint import pprint
+    >>> pprint(pub._queueOfPendingMessage)
+    [{'data': 'My Message',
+      'info': {'content_encoding': None,
+               'content_type': None,
+               'delivery_mode': None,
+               'immediate': False,
+               'mandatory': False,
+               'priority': 10,
+               'routing_key': None,
+               'serializer': None}}]
+    >>> pub.send('My Better Message', priority=1)
+    >>> len(pub._queueOfPendingMessage)
+    2
+    >>> transaction.commit()
+    Sending to message broker: 'My Message' with priority: 10
+    Sending to message broker: 'My Better Message' with priority: 1
+
+If the transaction is aborted, nothing gets sent to the server:
+
+    >>> tr = transaction.begin()
+    >>> pub = FakePublisher()
+    >>> pub._register()
+    establishing connection with backend
+    >>> pub._queueOfPendingMessage
+    []
+    >>> pub.send('My Message', priority=10)
+    >>> from pprint import pprint
+    >>> pprint(pub._queueOfPendingMessage)
+    [{'data': 'My Message',
+      'info': {'content_encoding': None,
+               'content_type': None,
+               'delivery_mode': None,
+               'immediate': False,
+               'mandatory': False,
+               'priority': 10,
+               'routing_key': None,
+               'serializer': None}}]
+    >>> pub.send('My Better Message', priority=1)
+    >>> len(pub._queueOfPendingMessage)
+    2
+    >>> transaction.abort()
+    >>> pub._queueOfPendingMessage is None
+    True
+
+If the publisher is not transaction awe, the message gets sent directly to the server:
+
+    >>> pub = FakePublisher()
+    >>> pub._queueOfPendingMessage is None
+    True
+    >>> pub.send('My Message', priority=10)
+    Sending to message broker: 'My Message' with priority: 10
+    >>> pub.send('My Better Message', priority=1)
+    Sending to message broker: 'My Better Message' with priority: 1

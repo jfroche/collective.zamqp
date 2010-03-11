@@ -1,0 +1,102 @@
+Message Wrapper attributes lookup
+---------------------------------
+
+Some setup first. We create a fake amqp message.
+
+    >>> from affinitic.zamqp.interfaces import IMessage
+    >>> from zope.interface import implements
+    >>> class DummyAMQPMessage(object):
+    ...     implements(IMessage)
+    ...     _state = ''
+    ...
+    ...     def ack(self):
+    ...         self._state = 'ACK'
+
+
+    >>> from affinitic.zamqp.interfaces import IMessageWrapper
+    >>> message = DummyAMQPMessage()
+    >>> messageWrapper = IMessageWrapper(message)
+
+The message wrapper does not have a _state attribute but the
+lookup will look in the adapted object (the DummyAMQPMessage object)::
+
+    >>> messageWrapper._state
+    ''
+    >>> messageWrapper.ack()
+    >>> messageWrapper._state
+    'ACK'
+
+
+Message and transaction
+-----------------------
+
+If the message is transaction aware and is acknoledged then the message receive acknoledgement
+only on commit::
+
+    >>> message = DummyAMQPMessage()
+    >>> import transaction
+    >>> tr = transaction.begin()
+    >>> messageWrapper = IMessageWrapper(message)
+    >>> messageWrapper.acknoledged
+    False
+    >>> messageWrapper._register()
+    >>> messageWrapper.acknoledged
+    False
+    >>> message._state
+    ''
+    >>> messageWrapper.ack()
+    >>> messageWrapper.acknoledged
+    True
+    >>> message._state
+    ''
+    >>> transaction.commit()
+    >>> message._state
+    'ACK'
+
+If the transaction is aborted::
+
+    >>> message = DummyAMQPMessage()
+    >>> import transaction
+    >>> tr = transaction.begin()
+    >>> from affinitic.zamqp.interfaces import IMessageWrapper
+    >>> messageWrapper = IMessageWrapper(message)
+    >>> messageWrapper._register()
+    >>> messageWrapper.acknoledged
+    False
+    >>> message._state
+    ''
+    >>> messageWrapper.ack()
+    >>> messageWrapper.acknoledged
+    True
+    >>> message._state
+    ''
+    >>> transaction.abort()
+    >>> message._state
+    ''
+    >>> messageWrapper.acknoledged
+    False
+
+If the message is not acknoledged nothing happen on the message.
+
+    >>> tr = transaction.begin()
+    >>> message = DummyAMQPMessage()
+    >>> messageWrapper = IMessageWrapper(message)
+    >>> messageWrapper._register()
+    >>> messageWrapper.acknoledged
+    False
+    >>> message._state
+    ''
+    >>> transaction.commit()
+    >>> message._state
+    ''
+
+If we work without a transaction, message recieve directly the acknoledgment
+
+    >>> messageWrapper = IMessageWrapper(message)
+    >>> message._state
+    ''
+    >>> messageWrapper.ack()
+    >>> messageWrapper.acknoledged
+    True
+    >>> message._state
+    'ACK'

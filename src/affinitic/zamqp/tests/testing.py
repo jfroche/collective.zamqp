@@ -8,6 +8,8 @@ Copyright by Affinitic sprl
 $Id: event.py 67630 2006-04-27 00:54:03Z jfroche $
 """
 from time import sleep
+from unittest import TestSuite
+
 from zope.interface import Interface
 import grokcore.component as grok
 from zope.component import provideHandler
@@ -21,6 +23,7 @@ class IFeedMessage(Interface):
     """
     Feed Message marker interface
     """
+
 
 class TestConnection(BrokerConnection):
     grok.name("test")
@@ -46,3 +49,7 @@ def handleMessage(message, event):
     sleep(20)
 
 provideHandler(handleMessage, (IFeedMessage, IArrivedMessage))
+
+
+def test_suite():
+    return TestSuite()
