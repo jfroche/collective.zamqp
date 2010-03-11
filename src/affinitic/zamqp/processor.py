@@ -13,22 +13,16 @@ import threading
 import transaction
 from time import sleep
 from ZODB.POSException import ConflictError
-from zope.component import queryUtility, getUtilitiesFor, getUtility
+from zope.component import queryUtility, createObject
 from zope.app.publication.zopepublication import ZopePublication
 from zope.app.component.hooks import setSite
 
-from carrot.messaging import ConsumerSet
-
 from affinitic.zamqp import logger
-from zope.interface import alsoProvides
-from affinitic.zamqp.interfaces import IConsumer, IBrokerConnection, IArrivedMessage
+from affinitic.zamqp.interfaces import IConsumer, IArrivedMessage
 
 log = logging.getLogger('affinitic.zamqp')
 
-ERROR_MARKER = object()
 storage = threading.local()
-
-THREAD_STARTUP_WAIT = 0.05
 
 
 class ConsumerProcessor(object):
@@ -42,27 +36,27 @@ class ConsumerProcessor(object):
         exchange = message.delivery_info.get('exchange')
         logger.debug('Notify new message %s in exchange: %s' % (messageId,
                                                                 exchange))
-        stateBeforeNotification = message._state
         setSite(self.site)
+        #XXX all this should be implemented with a with statement
         transaction.begin()
+        message._register()
         try:
-            self.sm.subscribers((message,), IArrivedMessage)
+            results = self.sm.subscribers((message,), IArrivedMessage)
         except Exception, error:
             #XXX Send to Error queue ?
             log.error('Error while running job %s on exchange %s' % (messageId, exchange))
             log.exception(error)
         else:
+            logger.debug("Before commit Message %s (status = '%s')" % (messageId,
+                                                                 message._state))
             try:
                 transaction.commit()
             except ConflictError:
                 logger.error('Conflict while working on message %s' % messageId)
-            else:
-                ack = getattr(message, '_ack', False)
-                if ack:
-                    message.ack()
             logger.debug("Handled Message %s (status = '%s')" % (messageId,
                                                                  message._state))
-            if message._state == stateBeforeNotification:
+            if not results:
+                #If there is no result
                 #XXX nobody used the message: error queue/dead letter queue ?
                 pass
 
@@ -97,22 +91,8 @@ class MultiProcessor(object):
         return self.getSite().getSiteManager()
 
     def registerConsumers(self, connectionId):
-        conn = getUtility(IBrokerConnection, name=connectionId).__class__()
-        self.consumerSet = ConsumerSet(connection=conn)
-        for name, consumerUtility in getUtilitiesFor(IConsumer):
-            if consumerUtility.connection_id == connectionId:
-                self.consumerSet.add_consumer(consumerUtility)
-        self.consumerSet.register_callback(self.mark_message)
+        self.consumerSet = createObject('ConsumerSet', connectionId)
         self.consumerSet.register_callback(self.notify_message)
-
-    def mark_message(self, message_data, message):
-        channelId = message.delivery_info.get('exchange')
-        interfaceClass = self.getInterfaceByChannel(channelId)
-        if interfaceClass is not None:
-            logger.debug('Thread %s - Mark message %s with interface %s' % (self.threadName,
-                                                                            message.delivery_info.get('delivery_tag'),
-                                                                            interfaceClass.__name__))
-            alsoProvides(message, interfaceClass)
 
     def notify_message(self, message_data, message):
         while True:

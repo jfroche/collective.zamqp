@@ -7,9 +7,10 @@ Copyright by Affinitic sprl
 
 $Id: event.py 67630 2006-04-27 00:54:03Z jfroche $
 """
+from zope.interface import alsoProvides
 from zope.component import getUtility
 from carrot.messaging import Consumer as CarrotConsumer
-from affinitic.zamqp.interfaces import IConsumer, IBrokerConnection
+from affinitic.zamqp.interfaces import IConsumer, IBrokerConnection, IMessage, IMessageWrapper
 import grokcore.component as grok
 
 
@@ -49,3 +50,12 @@ class Consumer(grok.GlobalUtility, CarrotConsumer):
     def as_dict(self):
         return {'exchange': self.exchange,
                 'routing_key': self.routingKey}
+
+    def receive(self, message_data, message):
+        alsoProvides(message, IMessage)
+        message = IMessageWrapper(message)
+        alsoProvides(message, self.messageInterface)
+        if not self.callbacks:
+            raise NotImplementedError("No consumer callbacks registered")
+        for callback in self.callbacks:
+            callback(message_data, message)

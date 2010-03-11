@@ -58,3 +58,22 @@ class IArrivedMessage(IObjectEvent):
     """
     Event fired when a new message has arrived
     """
+
+
+class IMessageWrapper(Interface):
+    """
+    A Message wrapper
+    """
+
+
+class IMessage(Interface):
+    """
+    """
+
+
+class IPublisher(Interface):
+    """
+    A Publisher send message to a queue via an exchange
+    """
+
+    connectionId = Attribute('')

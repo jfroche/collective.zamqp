@@ -1,4 +1,5 @@
 <configure xmlns="http://namespaces.zope.org/zope"
+           xmlns:grok="http://namespaces.zope.org/grok"
            i18n_domain="zamqp">
 
     <include package="z3c.autoinclude" file="meta.zcml" />
@@ -7,5 +8,7 @@
     <subscriber
         for="zope.app.appsetup.interfaces.IDatabaseOpenedWithRootEvent"
         handler=".service.bootStrapSubscriber"/>
+
+    <grok:grok package="."/>
 
 </configure>
