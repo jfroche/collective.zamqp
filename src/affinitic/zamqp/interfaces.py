@@ -8,12 +8,15 @@ Copyright by Affinitic sprl
 $Id: event.py 67630 2006-04-27 00:54:03Z jfroche $
 """
 from zope.interface import Interface, Attribute
+from zope.component.interfaces import IObjectEvent
 
 
-class Connection(Interface):
+class IBrokerConnection(Interface):
     """
     AMQP Broker connection to an AMQP server via a specific virtual host
     """
+
+    id = Attribute('')
 
     hostname = Attribute('')
 
@@ -31,13 +34,27 @@ class Connection(Interface):
         """
 
 
-class Consumer(Interface):
+class IConsumer(Interface):
     """
     A Consumer receive messages sent to a queue via an exchange
     """
+
+    connectionId = Attribute('')
 
     queue = Attribute('')
 
     exchange = Attribute('')
 
+    exchangeType = Attribute('')
+
     routingKey = Attribute('')
+
+    auto_delete = Attribute('')
+
+    messageInterface = Attribute("Return the interface related to the message")
+
+
+class IArrivedMessage(IObjectEvent):
+    """
+    Event fired when a new message has arrived
+    """

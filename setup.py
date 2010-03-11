@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 import os
 
-version = '0.1'
+version = '0.2dev'
 
 setup(name='affinitic.zamqp',
       version=version,
@@ -12,9 +12,9 @@ setup(name='affinitic.zamqp',
         "Programming Language :: Python",
         ],
       keywords='',
-      author='',
-      author_email='',
-      url='',
+      author='Jean-Francois Roche',
+      author_email='jfroche@affinitic.be',
+      url='http://hg.affinitic.be/affinitic.zamqp',
       license='GPL',
       packages=find_packages('src', exclude=['ez_setup']),
       package_dir={'': 'src'},
@@ -29,6 +29,7 @@ setup(name='affinitic.zamqp',
       install_requires=[
           'setuptools',
           'carrot',
-          'Zope2',
-          'z3c.autoinclude',
-          'five.dbevent'])
+          'uuid', # python < 2.5
+          #'Zope2', # python = 2.6
+          'grokcore.component',
+          'z3c.autoinclude'])
