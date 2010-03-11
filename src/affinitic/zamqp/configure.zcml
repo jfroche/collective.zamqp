@@ -4,6 +4,8 @@
     <include package="z3c.autoinclude" file="meta.zcml" />
     <includeDependencies package="." />
 
-    <include package=".browser"/>
+    <subscriber
+        for="zope.app.appsetup.interfaces.IDatabaseOpenedWithRootEvent"
+        handler=".service.bootStrapSubscriber"/>
 
 </configure>
