@@ -5,7 +5,7 @@ version = '0.2dev'
 
 setup(name='affinitic.zamqp',
       version=version,
-      description="AMQP Consumer and publisher in Zope",
+      description="AMQP Consumer and publisher integration with Zope",
       long_description=open("README.txt").read() + "\n" +
                        open(os.path.join("docs", "HISTORY.txt")).read(),
       classifiers=[
@@ -26,6 +26,8 @@ setup(name='affinitic.zamqp',
                   'publishmsg = affinitic.zamqp.publisher:main']},
       extras_require=dict(
             test=['zope.testing', 'Zope2'],
+            zope210=['five.dbevent', 'uuid'],
+            zope212=['five.dbevent', 'Zope2'],
             docs=['z3c.recipe.sphinxdoc',
                   'collective.sphinx.includechangelog',
                   'repoze.sphinx.autointerface',
@@ -34,9 +36,6 @@ setup(name='affinitic.zamqp',
           'setuptools',
           'carrot',
           'transaction',
-          'five.dbevent',
           'zope.component',
-          'uuid', # python < 2.5
-          #'Zope2', # python = 2.6
           'grokcore.component',
           'z3c.autoinclude'])

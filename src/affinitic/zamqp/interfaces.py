@@ -8,7 +8,7 @@ Copyright by Affinitic sprl
 $Id: event.py 67630 2006-04-27 00:54:03Z jfroche $
 """
 from zope.interface import Interface, Attribute
-from zope.component.interfaces import IObjectEvent
+from zope.component.interfaces import IObjectEvent, IFactory
 
 
 class IBrokerConnection(Interface):
@@ -16,21 +16,28 @@ class IBrokerConnection(Interface):
     AMQP Broker connection to an AMQP server via a specific virtual host
     """
 
-    id = Attribute('')
+    id = Attribute('The connection id')
 
-    hostname = Attribute('')
+    hostname = Attribute('The hostname where the broker is located')
 
-    port = Attribute('')
+    port = Attribute('The port where the broker is running (default: 5672)')
 
-    userid = Attribute('')
+    userid = Attribute('The user id to access the broker')
 
-    password = Attribute('')
+    password = Attribute("The user's password to access the broker")
 
-    virtualHost = Attribute('')
+    virtualHost = Attribute('The virtual host id')
 
-    def getConnection():
+
+class IBrokerConnectionFactory(IFactory):
+
+    def __call__(connectionId):
         """
-        Return a connection to access a virtual host
+        Create a BrokerConnection by fetching the corresponding BrokerConnection
+        with ``connectionId``
+
+        :param connectionId: the id of the broker connection
+        :rtype: BrokerConnection
         """
 
 
@@ -39,7 +46,7 @@ class IConsumer(Interface):
     A Consumer receive messages sent to a queue via an exchange
     """
 
-    connectionId = Attribute('')
+    connectionId = Attribute('The connection id where the queue is/will be registered')
 
     queue = Attribute('')
 

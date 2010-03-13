@@ -5,7 +5,8 @@ AMQP
 ----
 
 The Advanced Message Queuing Protocol [#amqp]_ is a very performant protocol that is implemented
-in many platforms, many languages and thus can exchange messages between many framework/applications.
+in many platforms, many languages and thus can exchange information reliably between many framework/applications.
+It enables good Enterprise Application Integration (EAI) [#EAI]_.
 
 The most known AMQP open source servers are: `RabbitMQ <http://www.rabbitmq.com>`_ and `Qpid <http://qpid.apache.org/>`_
 
@@ -23,26 +24,34 @@ As you might not want to deal with a "low level" API, there is a higher level AP
 Why this package ?
 ------------------
 
-AFAIK Zope 2 unfortunately doesn't have any integration (Twisted does so I guess it might be
-easier to implement it with Zope 3).
+AFAIK Zope unfortunately doesn't have any AMQP integration.
 
 The іdea behind this project is to provide a messaging solution together with the observer pattern
 in Zope [#events]_. An image might help to understand what we try to implement here:
 
 .. image:: zamqp.png
 
-As you might also see, AMQP also permit asynchronous events in Zope 2.
+As you might also see, AMQP also permit asynchronous events in Zope.
+
+What do we mean by Zope integration ?
+-------------------------------------
+
+  * Using ZCA to declare publisher, consumer and connection to broker
+  * Have transactional delivery support together with Zope transaction [#transaction]_ (and ZODB)
 
 Dependencies
 ------------
 
-We use `carrot <http://pypi.python.org/pypi/carrot>`_ to send/receive messages and enable consumers in separate threads within
-Zope.
+We use `carrot <http://pypi.python.org/pypi/carrot>`_ to send/receive messages and enable consumers in separate threads within Zope.
+
+We use `grok <http://grok.zope.org>`_ to define our zope components. This avoids us to write too much
+zcml.
 
 We tested this package with:
 
-    * Zope 2.12
-    * `five.dbevent <http://pypi.python.org/pypi/five.dbevent>`_ to add our event subscribers on Zope database initialization
+    * Python 2.4 and Python 2.6
+    * Zope 2.10 and 2.12
+    * `five.dbevent <http://pypi.python.org/pypi/five.dbevent>`_ to add our event subscribers just after Zope database initialization
     * `RabbitMQ <http://www.rabbitmq.com>`_
 
 .. rubric:: Footnotes
@@ -52,4 +61,11 @@ We tested this package with:
     * http://blogs.digitar.com/jjww/2009/01/rabbits-and-warrens/
     * http://amqp.org
 
+.. [#EAI] See:
+
+    * http://en.wikipedia.org/wiki/Enterprise_application_integration
+    * A must read: Martin Fowler, *Patterns of Enterprise Application Architecture*, Addison-Wesley, 2003, ISBN: `0321127420 <http://www.amazon.com/exec/obidos/ASIN/0321127420/enterpriseint-20>`_
+
 .. [#events] http://wiki.zope.org/zope3/events.html
+
+.. [#transaction] http://pypi.python.org/pypi/transaction
