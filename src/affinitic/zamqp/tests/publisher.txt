@@ -1,56 +1,3 @@
-Command line parsing for publisher
-----------------------------------
-
-    >>> import sys
-    >>> exitOriginal = sys.exit
-    >>> def exit(level=0):
-    ...     print '--Exit with level %s--' % level
-    >>> sys.exit = exit
-
-If you don't provide enough argument, it will print you the usage and exit::
-
-    >>> from affinitic.zamqp.publisher import getCommandLineConfig
-    >>> getCommandLineConfig()
-    Usage: publishmsg [-h | -o hostname -t port -u (userid) -p (password) -v (virtual_host) -e (exchange) -r (routing_key) -m (message)]
-    ...
-    --Exit with level 2--
-    (None, 5672, None, None, None, None, None, None)
-
-If you provide wrong arguments, it will print you the usage and exit::
-
-    >>> sys.argv = ['cmd', '--foobar']
-    >>> getCommandLineConfig()
-    option --foobar not recognized
-    Usage: publishmsg [-h | -o hostname -t port -u (userid) -p (password) -v (virtual_host) -e (exchange) -r (routing_key) -m (message)]
-    ...
-    --Exit with level 2--
-    (None, 5672, None, None, None, None, None, None)
-
-To get help, just use `publishmsg -h` or `publishmsg --help`::
-
-    >>> sys.argv = ['cmd', '-h']
-    >>> getCommandLineConfig()
-    Usage: publishmsg [-h | -o hostname -t port -u (userid) -p (password) -v (virtual_host) -e (exchange) -r (routing_key) -m (message)]
-    ...
-    --Exit with level 0--
-    (None, 5672, None, None, None, None, None, None)
-    >>> sys.exit = exitOriginal
-
-Testing if we provide the right parameter, everything is returned correctly::
-
-    >>> sys.argv = ['cmd', '-o', 'localhost', '-t', '20', '-u', 'john', '-p', 'secret',
-    ...                    '-v', 'virtual1', '-e', 'exchange1', '-r', 'routing1',
-    ...                    '-m', 'Superb Message']
-    >>> getCommandLineConfig()
-    ('localhost', '20', 'john', 'secret', 'virtual1', 'exchange1', 'routing1', 'Superb Message')
-
-    >>> sys.argv = ['cmd', '--hostname', 'localhost', '--port', '20', '--user', 'john',
-    ...                    '--password', 'secret', '--virtual-host', 'virtual1', 
-    ...                    '--exchange', 'exchange1', '--routing-key', 'routing1',
-    ...                    '--message', 'Superb Message']
-    >>> getCommandLineConfig()
-    ('localhost', '20', 'john', 'secret', 'virtual1', 'exchange1', 'routing1', 'Superb Message')
-
 Publisher and transaction
 -------------------------
 
@@ -73,7 +20,7 @@ transfered to the message broker once the transaction has been commited::
     ...     def create_backend(self):
     ...         return FakeBackend()
 
-    >>> from zope.component import provideUtility, createObject
+    >>> from zope.component import provideUtility
     >>> from affinitic.zamqp.interfaces import IBrokerConnection
     >>> provideUtility(DummyBrokerConnection(), IBrokerConnection, name='bar')
 
@@ -153,3 +100,61 @@ If the publisher is not transaction awe, the message gets sent directly to the s
     Sending to message broker: 'My Message' with priority: 10
     >>> pub.send('My Better Message', priority=1)
     Sending to message broker: 'My Better Message' with priority: 1
+
+Makes coverage happy. A backend can be assigned separatly
+
+    >>> pub.backend = FakeBackend()
+    establishing connection with backend
+
+Command line parsing for publisher
+----------------------------------
+
+    >>> import sys
+    >>> exitOriginal = sys.exit
+    >>> def exit(level=0):
+    ...     print '--Exit with level %s--' % level
+    >>> sys.exit = exit
+
+If you don't provide enough argument, it will print you the usage and exit::
+
+    >>> from affinitic.zamqp.publisher import getCommandLineConfig
+    >>> getCommandLineConfig()
+    Usage: publishmsg [-h | -o hostname -t port -u (userid) -p (password) -v (virtual_host) -e (exchange) -r (routing_key) -m (message)]
+    ...
+    --Exit with level 2--
+    (None, 5672, None, None, None, None, None, None)
+
+If you provide wrong arguments, it will print you the usage and exit::
+
+    >>> sys.argv = ['cmd', '--foobar']
+    >>> getCommandLineConfig()
+    option --foobar not recognized
+    Usage: publishmsg [-h | -o hostname -t port -u (userid) -p (password) -v (virtual_host) -e (exchange) -r (routing_key) -m (message)]
+    ...
+    --Exit with level 2--
+    (None, 5672, None, None, None, None, None, None)
+
+To get help, just use `publishmsg -h` or `publishmsg --help`::
+
+    >>> sys.argv = ['cmd', '-h']
+    >>> getCommandLineConfig()
+    Usage: publishmsg [-h | -o hostname -t port -u (userid) -p (password) -v (virtual_host) -e (exchange) -r (routing_key) -m (message)]
+    ...
+    --Exit with level 0--
+    (None, 5672, None, None, None, None, None, None)
+    >>> sys.exit = exitOriginal
+
+Testing if we provide the right parameter, everything is returned correctly::
+
+    >>> sys.argv = ['cmd', '-o', 'localhost', '-t', '20', '-u', 'john', '-p', 'secret',
+    ...                    '-v', 'virtual1', '-e', 'exchange1', '-r', 'routing1',
+    ...                    '-m', 'Superb Message']
+    >>> getCommandLineConfig()
+    ('localhost', '20', 'john', 'secret', 'virtual1', 'exchange1', 'routing1', 'Superb Message')
+
+    >>> sys.argv = ['cmd', '--hostname', 'localhost', '--port', '20', '--user', 'john',
+    ...                    '--password', 'secret', '--virtual-host', 'virtual1', 
+    ...                    '--exchange', 'exchange1', '--routing-key', 'routing1',
+    ...                    '--message', 'Superb Message']
+    >>> getCommandLineConfig()
+    ('localhost', '20', 'john', 'secret', 'virtual1', 'exchange1', 'routing1', 'Superb Message')

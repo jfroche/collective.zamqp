@@ -1,0 +1,35 @@
+Consumer
+========
+
+A `Consumer <#affinitic.zamqp.consumer.Consumer>`_ is a component which connect to a queue and wait for incoming message.
+
+Once a message is received, the Consumer adapts it using the IMessageWrapper adapter. This implements the Message Translator pattern (see http://www.eaipatterns.com/MessageTranslator.html) but also enable any other Message transformation pattern:
+
+    * Message translator (http://www.eaipatterns.com/MessageTranslator.html)
+    * Envelope wrapper (http://www.eaipatterns.com/EnvelopeWrapper.html)
+    * Content enricher (http://www.eaipatterns.com/DataEnricher.html)
+    * Content filter (http://www.eaipatterns.com/ContentFilter.html)
+
+Interfaces
+----------
+
+.. autointerface:: affinitic.zamqp.interfaces.IConsumer
+    :show-inheritance:
+    :inherited-members:
+
+Implementation
+--------------
+
+.. module:: affinitic.zamqp.consumer
+
+.. autoclass:: Consumer
+    :members:
+    :show-inheritance:
+    :inherited-members:
+
+
+Example and Tests
+-----------------
+
+.. includedoc:: affinitic.zamqp.tests:/consumer.txt
+

@@ -1,0 +1,33 @@
+Publisher
+=========
+
+A `Publisher <#affinitic.zamqp.consumer.Consumer>`_ is a component which connect to a queue and sends messages.
+
+The publisher can be transaction aware which means that having a publisher within a transaction, once a message is passed to the publisher object, the message really gets send to the message broker when the transaction is correctly commited. Also, if for some reason the transaction is aborted, no message gets pushed into the queue.
+
+We also define a command line publisher which is a little script that enable to push message from the command line shell.
+
+Interfaces
+----------
+
+.. autointerface:: affinitic.zamqp.interfaces.IPublisher
+    :show-inheritance:
+    :inherited-members:
+
+Implementation
+--------------
+
+.. module:: affinitic.zamqp.publisher
+
+.. autoclass:: Publisher
+    :members:
+    :show-inheritance:
+    :inherited-members:
+
+
+Example and Tests
+-----------------
+
+.. includedoc:: affinitic.zamqp.tests:/publisher.txt
+
+

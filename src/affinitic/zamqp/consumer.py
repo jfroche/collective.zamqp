@@ -8,22 +8,45 @@ Copyright by Affinitic sprl
 $Id: event.py 67630 2006-04-27 00:54:03Z jfroche $
 """
 from zope.interface import alsoProvides
-from zope.component import getUtility
+from zope.component import getUtility, queryAdapter
 from carrot.messaging import Consumer as CarrotConsumer
 from affinitic.zamqp.interfaces import IConsumer, IBrokerConnection, IMessage, IMessageWrapper
 import grokcore.component as grok
 
 
 class Consumer(grok.GlobalUtility, CarrotConsumer):
+    __doc__ = CarrotConsumer.__doc__
     grok.baseclass()
     grok.implements(IConsumer)
 
     queue = None
+    messageInterface = None
+    connection_id = None
 
-    def __init__(self):
-        self._connection = None
-        self._backend = None
+    def __init__(self, connection=None, queue=None, exchange=None,
+            routing_key=None, **kwargs):
+        self._connection = connection
+        self.backend = kwargs.get("backend", None)
+        self.queue = queue or self.queue
+
+        # Binding.
+        self.queue = queue or self.queue
+        self.exchange = exchange or self.exchange
+        self.routing_key = routing_key or self.routing_key
         self.callbacks = []
+
+        # Options
+        self.durable = kwargs.get("durable", self.durable)
+        self.exclusive = kwargs.get("exclusive", self.exclusive)
+        self.auto_delete = kwargs.get("auto_delete", self.auto_delete)
+        self.exchange_type = kwargs.get("exchange_type", self.exchange_type)
+        self.warn_if_exists = kwargs.get("warn_if_exists",
+                                         self.warn_if_exists)
+        self.auto_ack = kwargs.get("auto_ack", self.auto_ack)
+        self.auto_declare = kwargs.get("auto_declare", self.auto_declare)
+
+        # exclusive implies auto-delete.
+        self._backend = None
         if self.exclusive:
             self.auto_delete = True
         self.consumer_tag = self._generate_consumer_tag()
@@ -47,14 +70,19 @@ class Consumer(grok.GlobalUtility, CarrotConsumer):
 
     backend = property(getBackend, setBackend)
 
-    def as_dict(self):
-        return {'exchange': self.exchange,
-                'routing_key': self.routingKey}
+    def _adaptMessage(self, message):
+        alsoProvides(message, IMessage)
+        return queryAdapter(message, IMessageWrapper, default=message)
+
+    def _markMessage(self, message):
+        if self.messageInterface:
+            alsoProvides(message, self.messageInterface)
+        return message
 
     def receive(self, message_data, message):
-        alsoProvides(message, IMessage)
-        message = IMessageWrapper(message)
-        alsoProvides(message, self.messageInterface)
+        message = self._markMessage(message)
+        message = self._adaptMessage(message)
+        message = self._markMessage(message)
         if not self.callbacks:
             raise NotImplementedError("No consumer callbacks registered")
         for callback in self.callbacks:

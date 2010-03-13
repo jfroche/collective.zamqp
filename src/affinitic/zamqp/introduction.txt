@@ -1,6 +1,8 @@
 Introduction
 ============
 
+This package define basic components of a Messaging Gateway integrated inside Zope using AMQP.
+
 AMQP
 ----
 
@@ -36,13 +38,15 @@ As you might also see, AMQP also permit asynchronous events in Zope.
 What do we mean by Zope integration ?
 -------------------------------------
 
-  * Using ZCA to declare publisher, consumer and connection to broker
+  * Using ZCA to declare publisher, consumer and connection to broker. In other word, create a clean Messaging Gateway [#MessagingGateway]_ to be use with zope applications.
   * Have transactional delivery support together with Zope transaction [#transaction]_ (and ZODB)
+  * Using ZCA to implement the Message Translator pattern [#MessageTranslator]_
+  * Using ZCA to implement a Publish-Subscribe (aka Observer pattern) inside Zope with message coming from a Queue
 
 Dependencies
 ------------
 
-We use `carrot <http://pypi.python.org/pypi/carrot>`_ to send/receive messages and enable consumers in separate threads within Zope.
+We use `carrot <http://pypi.python.org/pypi/carrot>`_ to send/receive messages and enable consumers in separate threads within Zope. We use as much as possible the API defined by `carrot <http://pypi.python.org/pypi/carrot>`_. So you might want also to read the `carrot documentation <http://github.com/ask/carrot>`_.
 
 We use `grok <http://grok.zope.org>`_ to define our zope components. This avoids us to write too much
 zcml.
@@ -64,8 +68,13 @@ We tested this package with:
 .. [#EAI] See:
 
     * http://en.wikipedia.org/wiki/Enterprise_application_integration
+    * http://www.eaipatterns.com
     * A must read: Martin Fowler, *Patterns of Enterprise Application Architecture*, Addison-Wesley, 2003, ISBN: `0321127420 <http://www.amazon.com/exec/obidos/ASIN/0321127420/enterpriseint-20>`_
 
 .. [#events] http://wiki.zope.org/zope3/events.html
 
 .. [#transaction] http://pypi.python.org/pypi/transaction
+
+.. [#MessageTranslator] http://www.eaipatterns.com/MessageTranslator.html
+
+.. [#MessagingGateway] http://www.eaipatterns.com/MessagingGateway.html

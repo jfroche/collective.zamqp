@@ -1,0 +1,9 @@
+Message
+=======
+
+A MessageWrapper enables transaction support and defered acknoledgement.
+
+This means that we a message is received it is registered in the transaction so that if someone acknoledge the message, the acknoledgement will be send only if the transaction is correctly commited. Also if a message is acknoledge and for some reason the transaction is aborted, the message acknoledgement never gets sent.
+
+.. includedoc:: affinitic.zamqp.tests:/message.txt
+

@@ -8,6 +8,9 @@ Contents:
 
    introduction
    connection
+   consumer
+   publisher
+   message
    changelog
 
 Indices and tables

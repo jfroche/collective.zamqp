@@ -162,8 +162,6 @@ def getCommandLineConfig():
             routingKey = value
         elif o in ("-m", "--message"):
             message = value
-        else:
-            assert False, "unhandled option: %s" % o
     return (hostname, port, userId, password, virtualHost, exchangeName, routingKey, message)
 
 

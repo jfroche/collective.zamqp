@@ -1,5 +1,7 @@
-Message Wrapper attributes lookup
+Message wrapper attributes lookup
 ---------------------------------
+
+The message wrapper enable to lookup attribute first on its own class and if the attribute isn't found then it looks up in the adapted message.
 
 Some setup first. We create a fake amqp message.
 
@@ -16,6 +18,8 @@ Some setup first. We create a fake amqp message.
     >>> from affinitic.zamqp.interfaces import IMessageWrapper
     >>> message = DummyAMQPMessage()
     >>> messageWrapper = IMessageWrapper(message)
+    >>> messageWrapper
+    <affinitic.zamqp.message.MessageWrapper object at ...>
 
 The message wrapper does not have a _state attribute but the
 lookup will look in the adapted object (the DummyAMQPMessage object)::
@@ -30,7 +34,7 @@ lookup will look in the adapted object (the DummyAMQPMessage object)::
 Message and transaction
 -----------------------
 
-If the message is transaction aware and is acknoledged then the message receive acknoledgement
+If the message is transaction aware and is acknoledged then the message broker receives acknoledgement
 only on commit::
 
     >>> message = DummyAMQPMessage()

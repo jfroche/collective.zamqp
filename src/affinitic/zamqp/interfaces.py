@@ -46,15 +46,15 @@ class IConsumer(Interface):
     A Consumer receive messages sent to a queue via an exchange
     """
 
-    connectionId = Attribute('The connection id where the queue is/will be registered')
+    connection_id = Attribute('The connection id where the queue is/will be registered')
 
-    queue = Attribute('')
+    queue = Attribute('Name of the queue')
 
-    exchange = Attribute('')
+    exchange = Attribute('Name of the exchange the queue binds to')
 
-    exchangeType = Attribute('')
+    exchange_type = Attribute('')
 
-    routingKey = Attribute('')
+    routing_key = Attribute('')
 
     auto_delete = Attribute('')
 
