@@ -1,7 +1,10 @@
 Introduction
 ============
 
-This package define basic components of a Messaging Gateway integrated inside Zope using AMQP.
+This package define basic components of a Messaging Gateway [#MessagingGateway]_ integrated inside Zope using AMQP.
+
+ZCA is about loosely coupled design in an Application.
+AMQP is about loosely coupled communication between Applications. This package tries to join the two.
 
   * Documentation: http://docs.affinitic.be/affinitic.zamqp
   * Code Repository: http://bitbucket.org/jfroche/affinitic.zamqp
@@ -13,9 +16,10 @@ AMQP
 
 The Advanced Message Queuing Protocol [#amqp]_ is a very performant protocol that is implemented
 in many platforms, many languages and thus can exchange information reliably between many framework/applications.
-It enables good Enterprise Application Integration (EAI) [#EAI]_.
+It enables good Enterprise Application Integration (EAI) [#EAI]_ and real loosely coupled systems
+communication.
 
-The most known AMQP open source servers are: `RabbitMQ <http://www.rabbitmq.com>`_ and `Qpid <http://qpid.apache.org/>`_
+The most known AMQP open source servers (aka Message Broker) are: `RabbitMQ <http://www.rabbitmq.com>`_ and `Qpid <http://qpid.apache.org/>`_
 
 Existing Python AMQP libraries
 ------------------------------
