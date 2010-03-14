@@ -6,4 +6,4 @@ AMQP is about loosely coupled communication between Applications. This package t
   * Documentation: http://docs.affinitic.be/affinitic.zamqp
   * Code Repository: http://bitbucket.org/jfroche/affinitic.zamqp
   * Buildbot: http://buildbot.affinitic.be/builders/affinitic.zamqp%20linux_debian/
-  * Test Coverage: http://coverage.affinitic.be/affinitic.zamqp
+  * Test Coverage: http://coverage.affinitic.be/affinitic.zamqp/affinitic.zamqp.html

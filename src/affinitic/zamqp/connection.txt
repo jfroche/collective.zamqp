@@ -29,6 +29,10 @@ Implementation
     :show-inheritance:
     :inherited-members:
 
+.. autoclass:: BrokerConnectionFactory
+    :members:
+    :show-inheritance:
+    :inherited-members:
 
 Example and Tests
 -----------------

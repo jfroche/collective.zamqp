@@ -1,0 +1,33 @@
+ConsumerSet
+===========
+
+A `ConsumerSet <#affinitic.zamqp.consumerset.ConsumerSet>`_ is a set of consumers that are listening to the same `BrokerConnection <connection.html#affinitic.zamqp.interfaces.IBrokerConnection>`_ grouped into one object.
+
+We also define a factory to ease creation of a ConsumerSet, see `IConsumerSetFactory <#affinitic.zamqp.interfaces.IConsumerSetFactory>`_
+
+Interfaces
+----------
+
+.. autointerface:: affinitic.zamqp.interfaces.IConsumerSet
+    :show-inheritance:
+    :inherited-members:
+
+.. autointerface:: affinitic.zamqp.interfaces.IConsumerSetFactory
+    :members:
+    :show-inheritance:
+    :inherited-members:
+
+Implementation
+--------------
+
+.. module:: affinitic.zamqp.consumerset
+
+.. autoclass:: ConsumerSet
+    :members:
+    :show-inheritance:
+    :inherited-members:
+
+Example and Tests
+-----------------
+
+.. includedoc:: affinitic.zamqp.tests:/consumerset.txt

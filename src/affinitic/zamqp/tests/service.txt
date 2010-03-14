@@ -1,0 +1,95 @@
+Product configuration from zope.conf
+====================================
+
+To test the configuration that will be coming from the zope.conf file we change the global config object that is given by ``getConfiguration``::
+
+    >>> from affinitic.zamqp.service import getAutostartServiceNames
+    >>> from App.config import getConfiguration
+    >>> config = getConfiguration()
+
+If we don't configure any connection, an empty dictionary is returned::
+
+    >>> config.product_config = {}
+    >>> getAutostartServiceNames()
+    {}
+
+If we configure two connections, we get the two connections in two key/values of a dictionary::
+
+    >>> config = getConfiguration()
+    >>> config.product_config = {'affinitic.zamqp': {'conn1' : 'foo@bar',
+    ...                                              'conn2' : 'bar@foo'}}
+    >>> getAutostartServiceNames()
+    {'conn2': 'bar@foo', 'conn1': 'foo@bar'}
+
+ConsumerSet loop after Zope initialization
+==========================================
+
+We define the two connection corresponding to the previous configuration.
+
+The bar connection first::
+
+    >>> from affinitic.zamqp.connection import BrokerConnection
+    >>> from affinitic.zamqp.interfaces import IBrokerConnection
+    >>> from zope.component import provideUtility
+
+    >>> class DummyBarBrokerConnection(BrokerConnection):
+    ...     id = 'bar'
+    >>> conn = DummyBarBrokerConnection()
+    >>> provideUtility(conn, IBrokerConnection, name='bar')
+
+Then the foo connection is created::
+
+    >>> class DummyFooBrokerConnection(BrokerConnection):
+    ...     id = 'foo'
+    >>> conn = DummyFooBrokerConnection()
+    >>> provideUtility(conn, IBrokerConnection, name='foo')
+
+To be able to get the output from the two threads that will be created, we
+need to setup some logging (which is thread safe)::
+
+    >>> import logging
+    >>> import StringIO
+    >>> logger = logging.getLogger('test log')
+    >>> logger.setLevel(logging.DEBUG)
+    >>> stream = StringIO.StringIO()
+    >>> h = logging.StreamHandler(stream)
+    >>> logger.addHandler(h)
+
+As we can't receive messages in this test from a message broker, we mock the iterconsume method from the ConsumerSet so that it just log the fact that it should be consuming and don't make it blocking::
+
+    >>> def fakeIterConsume(self):
+    ...     logger.debug('Consuming on %s with connection id %s' % (self, self.connection_id))
+    ...     return []
+    >>> from carrot.messaging import ConsumerSet
+    >>> ConsumerSet.iterconsume_bak = ConsumerSet.iterconsume
+    >>> ConsumerSet.iterconsume = fakeIterConsume
+
+One more fake object, a database::
+
+    >>> from affinitic.zamqp.service import bootStrapSubscriber
+    >>> class FakeDb(object):
+    ...
+    ...     def open(self):
+    ...         pass
+    >>> db = FakeDb()
+
+And we fake the ``IDatabaseOpenedWithRootEvent`` event::
+
+    >>> class FakeDatabaseOpenedWithRootEvent(object):
+    ...     database = db
+    >>> event = FakeDatabaseOpenedWithRootEvent()
+
+We can at last read the configuration and initialise the two thread, one for consuming messages on connection bar and another for consuming messages on connection foo::
+
+    >>> bootStrapSubscriber(event)
+
+The log should have now informations telling us that the two thread were consuming::
+
+    >>> print stream.getvalue()
+    Consuming on <affinitic.zamqp.consumerset.ConsumerSet object ...> with connection id foo
+    Consuming on <affinitic.zamqp.consumerset.ConsumerSet object ...> with connection id bar
+
+Back to normal, removing our changes::
+
+    >>> logger.removeHandler(h)
+    >>> ConsumerSet.iterconsume = ConsumerSet.iterconsume_bak

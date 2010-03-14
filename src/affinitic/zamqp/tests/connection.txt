@@ -56,7 +56,7 @@ For BrokerConnectionFactory::
     >>> verifyObject(IBrokerConnectionFactory, factory)
     True
 
-The provided interface by the factory is IBrokerConnection
+The provided interface by the objects created by the factory is IBrokerConnection
 
     >>> implemented = factory.getInterfaces()
     >>> implemented.isOrExtends(IBrokerConnection)

@@ -7,8 +7,10 @@ Contents:
    :maxdepth: 3
 
    introduction
+   service
    connection
    consumer
+   consumerset
    publisher
    message
    changelog

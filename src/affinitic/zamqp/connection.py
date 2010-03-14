@@ -7,11 +7,13 @@ Copyright by Affinitic sprl
 
 $Id: event.py 67630 2006-04-27 00:54:03Z jfroche $
 """
+import grokcore.component as grok
 from zope.component import getUtility
 from zope.component.interfaces import IFactory
 from zope.interface import implementedBy
-import grokcore.component as grok
+
 from carrot.connection import BrokerConnection as CarrotBrokerConnection
+
 from affinitic.zamqp.interfaces import IBrokerConnection, IBrokerConnectionFactory
 
 

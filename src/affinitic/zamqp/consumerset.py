@@ -7,22 +7,31 @@ Copyright by Affinitic sprl
 
 $Id: event.py 67630 2006-04-27 00:54:03Z jfroche $
 """
-from zope.component import getUtilitiesFor, createObject, getUtility
-from zope.component.interfaces import IFactory
-from zope.interface import alsoProvides
-from carrot.messaging import ConsumerSet as CarrotConsumerSet
-from affinitic.zamqp.interfaces import IMessageWrapper
-from affinitic.zamqp.interfaces import IMessage, IConsumer
 import grokcore.component as grok
+from zope.component import getUtilitiesFor, createObject, getUtility, queryAdapter
+from zope.component.interfaces import IFactory
+from zope.interface import alsoProvides, implements, implementedBy
+
+from carrot.messaging import ConsumerSet as CarrotConsumerSet
+
+from affinitic.zamqp.interfaces import IMessageWrapper, IConsumerSet, IConsumerSetFactory
+from affinitic.zamqp.interfaces import IMessage, IConsumer
 
 
 class ConsumerSet(CarrotConsumerSet):
+    implements(IConsumerSet)
+
+    def _adaptMessage(self, message):
+        alsoProvides(message, IMessage)
+        return queryAdapter(message, IMessageWrapper, default=message)
+
+    def _markMessage(self, message):
+        consumer = getUtility(IConsumer, message.delivery_info['exchange'])
+        return consumer._markMessage(message)
 
     def receive(self, message_data, message):
-        alsoProvides(message, IMessage)
-        message = IMessageWrapper(message)
-        consumer = getUtility(IConsumer, message.delivery_info['exchange'])
-        alsoProvides(message, consumer.messageInterface)
+        message = self._markMessage(message)
+        message = self._adaptMessage(message)
         if not self.callbacks:
             raise NotImplementedError("No consumer callbacks registered")
         for callback in self.callbacks:
@@ -30,10 +39,18 @@ class ConsumerSet(CarrotConsumerSet):
 
 
 class ConsumerSetFactory(object):
+    grok.implements(IConsumerSetFactory)
+
+    title = 'ConsumerSet Factory'
+    description = 'Help creating a new Consumer Set'
+
+    def getInterfaces(self):
+        return implementedBy(ConsumerSet)
 
     def __call__(self, connectionId):
         conn = createObject('AMQPBrokerConnection', connectionId)
         consumerSet = ConsumerSet(conn)
+        consumerSet.connection_id = connectionId
         for name, consumerUtility in getUtilitiesFor(IConsumer):
             if consumerUtility.connection_id == connectionId:
                 consumerSet.add_consumer(consumerUtility)

@@ -28,14 +28,10 @@ class Consumer(grok.GlobalUtility, CarrotConsumer):
         self._connection = connection
         self.backend = kwargs.get("backend", None)
         self.queue = queue or self.queue
-
-        # Binding.
         self.queue = queue or self.queue
         self.exchange = exchange or self.exchange
         self.routing_key = routing_key or self.routing_key
         self.callbacks = []
-
-        # Options
         self.durable = kwargs.get("durable", self.durable)
         self.exclusive = kwargs.get("exclusive", self.exclusive)
         self.auto_delete = kwargs.get("auto_delete", self.auto_delete)
@@ -44,8 +40,6 @@ class Consumer(grok.GlobalUtility, CarrotConsumer):
                                          self.warn_if_exists)
         self.auto_ack = kwargs.get("auto_ack", self.auto_ack)
         self.auto_declare = kwargs.get("auto_declare", self.auto_declare)
-
-        # exclusive implies auto-delete.
         self._backend = None
         if self.exclusive:
             self.auto_delete = True
@@ -82,8 +76,9 @@ class Consumer(grok.GlobalUtility, CarrotConsumer):
     def receive(self, message_data, message):
         message = self._markMessage(message)
         message = self._adaptMessage(message)
-        message = self._markMessage(message)
         if not self.callbacks:
             raise NotImplementedError("No consumer callbacks registered")
         for callback in self.callbacks:
             callback(message_data, message)
+
+    receive.__doc__ = CarrotConsumer.receive.__doc__

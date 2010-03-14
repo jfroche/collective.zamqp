@@ -84,3 +84,21 @@ class IPublisher(Interface):
     """
 
     connection_id = Attribute('The BrokerConnection id where the queue is/will be registered')
+
+
+class IConsumerSet(Interface):
+    """
+    A Set of consumers connected to the same broker connection
+    """
+
+
+class IConsumerSetFactory(IFactory):
+
+    def __call__(connectionId):
+        """
+        Create a ConsumerSet and link the corresponding consumers
+        based on the ``connectionId``
+
+        :param connectionId: the id of the broker connection where the consumers are connected to
+        :rtype: ConsumerSet
+        """

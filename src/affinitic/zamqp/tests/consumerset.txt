@@ -1,0 +1,172 @@
+Defining a set of consumers
+===========================
+
+Instead of creating connections for different exchanges on the same virtual host, you can create one
+connection to the virtual host and subscribe to different exchange.
+
+At first you need to define a connection::
+
+    >>> from affinitic.zamqp.connection import BrokerConnection
+    >>> import grokcore.component as grok
+    >>> class DummyBrokerConnection(BrokerConnection):
+    ...     id = 'bar'
+    ...     grok.name(id)
+    >>> from affinitic.zamqp.interfaces import IBrokerConnection
+    >>> from zope.component import provideUtility
+    >>> conn = DummyBrokerConnection()
+    >>> provideUtility(conn, IBrokerConnection, name=conn.id)
+
+Then define different consumers (with two different marker interface) and link them to the same connection::
+
+    >>> from zope.interface import Interface
+    >>> class IBlueMessage(Interface):
+    ...     """
+    ...     Mark incoming message on the blue queue
+    ...     """
+    >>> from affinitic.zamqp.consumer import Consumer
+    >>> class BlueMessageConsumer(Consumer):
+    ...     connection_id = 'bar'
+    ...     exchange = 'blue-queue'
+    ...     exchange = 'blue'
+    ...     messageInterface = IBlueMessage
+    ...
+    ...     def declare(self):
+    ...         """
+    ...         Fake this method as we don't want to create any queue
+    ...         in this test
+    ...         """
+
+We provide the utility with the same name as the exchange::
+
+    >>> provideUtility(BlueMessageConsumer(), name='blue')
+
+Another message consumer, for red messages this time::
+
+    >>> from zope.interface import Interface
+    >>> class IRedMessage(Interface):
+    ...     """
+    ...     Mark incoming message on the red queue
+    ...     """
+    >>> class RedMessageConsumer(Consumer):
+    ...     connection_id = 'bar'
+    ...     exchange = 'red-queue'
+    ...     exchange = 'red'
+    ...     messageInterface = IRedMessage
+    ...
+    ...     def declare(self):
+    ...         """
+    ...         Fake this method as we don't want to create any queue
+    ...         in this test
+    ...         """
+
+Again, we provide the utility with the same name as the exchange::
+
+    >>> provideUtility(RedMessageConsumer(), name='red')
+
+Now we can define our ConsumerSet which will wait for incoming message on the red and the blue queue.
+To easy consumer set creation, we have defined a factory. The only parameter that the factory takes is
+the id of the connection::
+
+    >>> from zope.component import createObject
+    >>> consumerSet = createObject('ConsumerSet', 'bar')
+    >>> consumerSet
+    <affinitic.zamqp.consumerset.ConsumerSet object at ...>
+
+We already have our two consumers in this consumerSet::
+
+    >>> consumerSet.consumers
+    [<BlueMessageConsumer object at ...>, <RedMessageConsumer object at ...>]
+
+Now let's fake reception of a message on the Blue queue. We create a basic message first::
+
+    >>> class Message(object):
+    ...
+    ...     def __init__(self, body, queue):
+    ...         self.body = body
+    ...         self.delivery_info = {}
+    ...         self.delivery_info['exchange'] = queue
+
+    >>> message = Message('World is Blue', 'blue')
+
+The ``receive`` method on the consumer set will call first the ``_markMessage`` method which will add
+the marker interface of the corresponding consumer on the incoming message::
+
+    >>> message = consumerSet._markMessage(message)
+    >>> IBlueMessage.providedBy(message)
+    True
+
+Then the ``receive`` method will call the ``_adaptMessage`` method that can adapt our message. Let's
+define a the adapter first::
+
+    >>> from zope.component import provideAdapter, adapts
+    >>> from datetime import datetime
+    >>> from affinitic.zamqp.message import MessageWrapper
+    >>> class MessageWithTimeStamp(MessageWrapper):
+    ...     adapts(IBlueMessage)
+    ...
+    ...     @property
+    ...     def incomingDate(self):
+    ...         return datetime(2010, 1, 1)
+
+    >>> provideAdapter(MessageWithTimeStamp)
+
+    >>> adaptedMessage = consumerSet._adaptMessage(message)
+    >>> adaptedMessage
+    <MessageWithTimeStamp object at ...>
+
+As we did in the consumer we need a callback on our consumer set as we want the consumer set to do
+something with the incoming message. Otherwise we get an exception::
+
+    >>> consumerSet.receive(message.body, message)
+    Traceback (most recent call last):
+    ...
+    NotImplementedError: No consumer callbacks registered
+
+So we define a dummy callback that print the message content::
+
+    >>> def printMessage(message_data, message):
+    ...     print '%s received on %s queue with body "%s"' % (message,
+    ...                                                       message.delivery_info['exchange'],
+    ...                                                       message_data)
+    >>> consumerSet.register_callback(printMessage)
+
+Now each time a blue message is received, we adapt the message and print it::
+
+    >>> consumerSet.receive(message.body, message)
+    <MessageWithTimeStamp object ...> received on blue queue with body "World is Blue"
+
+If we pass a red message, it is also printed and adapted with the default adapter for message, ``MessageWrapper``::
+
+    >>> message = Message('World is Red', 'red')
+    >>> consumerSet.receive(message.body, message)
+    <affinitic.zamqp.message.MessageWrapper object ...> received on red queue with body "World is Red"
+
+Interface conformance
+=====================
+
+Using ``zope.interface`` to check wheter our implementation does what it promise to implement.
+
+    >>> from zope.interface.verify import verifyClass
+
+For ConsumerSet::
+
+    >>> from affinitic.zamqp.interfaces import IConsumerSet
+    >>> from affinitic.zamqp.consumerset import ConsumerSet
+    >>> verifyClass(IConsumerSet, ConsumerSet)
+    True
+
+For ConsumerSetFactory::
+
+    >>> from zope.interface.verify import verifyObject
+    >>> from affinitic.zamqp.interfaces import IConsumerSetFactory
+    >>> from affinitic.zamqp.consumerset import ConsumerSetFactory
+    >>> factory = ConsumerSetFactory()
+    >>> verifyObject(IConsumerSetFactory, factory)
+    True
+
+The provided interface by the objects created by the factory is IConsumerSet
+
+    >>> implemented = factory.getInterfaces()
+    >>> implemented.isOrExtends(IConsumerSet)
+    True
+

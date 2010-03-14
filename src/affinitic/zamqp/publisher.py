@@ -12,6 +12,7 @@ import getopt
 
 import grokcore.component as grok
 from zope.component import getUtility
+
 from carrot.connection import BrokerConnection
 from carrot.messaging import Publisher as CarrotPublisher
 
@@ -68,6 +69,8 @@ class Publisher(grok.GlobalUtility, CarrotPublisher, VTM):
             self._sendToBroker(message_data, routing_key, delivery_mode,
                                mandatory, immediate, priority, content_type,
                                content_encoding, serializer)
+
+    send.__doc__ = CarrotPublisher.send.__doc__
 
     def _finish(self):
         for msgInfo in self._queueOfPendingMessage:
