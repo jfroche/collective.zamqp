@@ -114,6 +114,8 @@ Command line parsing for publisher
     >>> def exit(level=0):
     ...     print '--Exit with level %s--' % level
     >>> sys.exit = exit
+    >>> argvOriginal = sys.argv
+    >>> sys.argv = []
 
 If you don't provide enough argument, it will print you the usage and exit::
 
@@ -158,3 +160,18 @@ Testing if we provide the right parameter, everything is returned correctly::
     ...                    '--message', 'Superb Message']
     >>> getCommandLineConfig()
     ('localhost', '20', 'john', 'secret', 'virtual1', 'exchange1', 'routing1', 'Superb Message')
+    >>> sys.argv = argvOriginal
+
+Interface conformance
+=====================
+
+Using ``zope.interface`` to check wheter our implementation does what it promise to implement.
+
+    >>> from zope.interface.verify import verifyObject
+
+Check the Consumer::
+
+    >>> from affinitic.zamqp.interfaces import IPublisher
+    >>> from affinitic.zamqp.publisher import Publisher
+    >>> verifyObject(IPublisher, Publisher())
+    True

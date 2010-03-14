@@ -83,4 +83,4 @@ class IPublisher(Interface):
     A Publisher send message to a queue via an exchange
     """
 
-    connectionId = Attribute('')
+    connection_id = Attribute('The BrokerConnection id where the queue is/will be registered')
