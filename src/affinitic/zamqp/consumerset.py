@@ -32,6 +32,7 @@ class ConsumerSet(CarrotConsumerSet):
     def receive(self, message_data, message):
         message = self._markMessage(message)
         message = self._adaptMessage(message)
+        message = self._markMessage(message)
         if not self.callbacks:
             raise NotImplementedError("No consumer callbacks registered")
         for callback in self.callbacks:

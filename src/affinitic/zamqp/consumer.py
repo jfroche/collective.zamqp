@@ -26,7 +26,9 @@ class Consumer(grok.GlobalUtility, CarrotConsumer):
     def __init__(self, connection=None, queue=None, exchange=None,
             routing_key=None, **kwargs):
         self._connection = connection
-        self.backend = kwargs.get("backend", None)
+        backend = kwargs.get("backend", None)
+        if backend is not None:
+            self.backend = backend
         self.queue = queue or self.queue
         self.queue = queue or self.queue
         self.exchange = exchange or self.exchange
@@ -76,6 +78,7 @@ class Consumer(grok.GlobalUtility, CarrotConsumer):
     def receive(self, message_data, message):
         message = self._markMessage(message)
         message = self._adaptMessage(message)
+        message = self._markMessage(message)
         if not self.callbacks:
             raise NotImplementedError("No consumer callbacks registered")
         for callback in self.callbacks:
