@@ -5,7 +5,7 @@ affinitic.zamqp
 Licensed under the GPL license, see LICENCE.txt for more details.
 Copyright by Affinitic sprl
 
-$Id: event.py 67630 2006-04-27 00:54:03Z jfroche $
+$Id$
 """
 from affinitic.zamqp.interfaces import IMessageWrapper, IMessage
 from affinitic.zamqp.transactionmanager import VTM

@@ -9,6 +9,10 @@ setup(name='affinitic.zamqp',
       long_description=open("README.txt").read() + "\n" +
                        open(os.path.join("docs", "HISTORY.txt")).read(),
       classifiers=[
+        "Operating System :: OS Independent"
+        "Intended Audience :: Developers",
+        "Topic :: Communications",
+        "Topic :: System :: Distributed Computing",
         "Programming Language :: Python",
         ],
       keywords='',
