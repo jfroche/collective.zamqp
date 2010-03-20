@@ -9,7 +9,7 @@ setup(name='affinitic.zamqp',
       long_description=open("README.txt").read() + "\n" +
                        open(os.path.join("docs", "HISTORY.txt")).read(),
       classifiers=[
-        "Operating System :: OS Independent"
+        "Operating System :: OS Independent",
         "Intended Audience :: Developers",
         "Topic :: Communications",
         "Topic :: System :: Distributed Computing",
@@ -18,7 +18,7 @@ setup(name='affinitic.zamqp',
       keywords='',
       author='Jean-Francois Roche',
       author_email='jfroche@affinitic.be',
-      url='http://hg.affinitic.be/affinitic.zamqp',
+      url='http://bitbucket.org/jfroche/affinitic.zamqp',
       license='ZPL',
       packages=find_packages('src', exclude=['ez_setup']),
       package_dir={'': 'src'},
