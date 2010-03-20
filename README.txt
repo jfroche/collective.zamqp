@@ -1,6 +1,6 @@
 This package defines basic components of a Messaging Gateway integrated inside Zope using AMQP.
 
-ZCA is about loosely coupled design in an Application.
+Zope Component Architecture (ZCA) is about loosely coupled design in an Application.
 AMQP is about loosely coupled communication between Applications. This package tries to join the two.
 
   * Documentation: http://docs.affinitic.be/affinitic.zamqp

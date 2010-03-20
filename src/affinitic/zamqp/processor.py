@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-<+ MODULE_NAME +>
+affinitic.zamqp
 
-Licensed under the <+ LICENSE +> license, see LICENCE.txt for more details.
+Licensed under the GPL license, see LICENCE.txt for more details.
 Copyright by Affinitic sprl
 
 $Id: event.py 67630 2006-04-27 00:54:03Z jfroche $
@@ -13,19 +13,19 @@ import threading
 import transaction
 from time import sleep
 from ZODB.POSException import ConflictError
-from zope.component import queryUtility, createObject
+from zope.component import createObject
 from zope.app.publication.zopepublication import ZopePublication
 from zope.app.component.hooks import setSite
 
 from affinitic.zamqp import logger
-from affinitic.zamqp.interfaces import IConsumer, IArrivedMessage
+from affinitic.zamqp.interfaces import IArrivedMessage
 
 log = logging.getLogger('affinitic.zamqp')
 
 storage = threading.local()
 
 
-class ConsumerProcessor(object):
+class ConsumerWorker(object):
 
     def __init__(self, site, waitTime=3.0):
         self.site = site
@@ -57,7 +57,7 @@ class ConsumerProcessor(object):
                                                                  message._state))
             if not results:
                 #If there is no result
-                #XXX nobody used the message: error queue/dead letter queue ?
+                #XXX nobody handled the message: error queue/dead letter queue ?
                 pass
 
 
@@ -77,18 +77,9 @@ class MultiProcessor(object):
     def threadName(self):
         return threading.currentThread().getName()
 
-    def getInterfaceByChannel(self, channelId):
-        consumer = queryUtility(IConsumer, name=channelId)
-        if consumer is not None:
-            return consumer.messageInterface
-        return None
-
     def getSite(self):
         self.root = self.connection.root()
         return getattr(self.root[ZopePublication.root_name], self.sitePath)
-
-    def getSiteManager(self):
-        return self.getSite().getSiteManager()
 
     def registerConsumers(self, connectionId):
         self.consumerSet = createObject('ConsumerSet', connectionId)
@@ -105,8 +96,11 @@ class MultiProcessor(object):
             else:
                 sleep(random.random())
                 break
-        processor = ConsumerProcessor(self.getSite())
+        processor = ConsumerWorker(self.getSite())
+        newThreadName = 'ConsumerWork-%s' % (len(self.threads))
+        logger.debug('Thread %s is starting new thread %s' % (self.threadName, newThreadName))
         thread = threading.Thread(
+            name=newThreadName,
             target=processor, args=(message,))
         self.threads.append(thread)
         thread.start()

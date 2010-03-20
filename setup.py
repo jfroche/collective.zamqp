@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 import os
 
-version = '0.2dev'
+version = '0.1'
 
 setup(name='affinitic.zamqp',
       version=version,
@@ -25,7 +25,7 @@ setup(name='affinitic.zamqp',
             'console_scripts': [
                   'publishmsg = affinitic.zamqp.publisher:main']},
       extras_require=dict(
-            test=['zope.testing', 'Zope2'],
+            test=['zope.testing', 'Zope2', 'five.dbevent'],
             zope210=['five.dbevent', 'uuid'],
             zope212=['five.dbevent', 'Zope2'],
             docs=['z3c.recipe.sphinxdoc',
