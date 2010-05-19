@@ -7,7 +7,6 @@ Copyright by Affinitic sprl
 
 $Id$
 """
-from time import sleep
 import threading
 from App.config import getConfiguration
 from affinitic.zamqp.processor import MultiProcessor
@@ -27,15 +26,14 @@ def getAutostartServiceNames():
 
 class ConsumerService(object):
 
-    def startProcessing(self, serviceId, db, siteName, connectionId):
+    def startProcessing(self, serviceId, db, siteName, connectionId, threads):
         """See interfaces.ITaskService"""
         # Start the thread running the processor inside.
-        processor = MultiProcessor(db, siteName, connectionId)
+        processor = MultiProcessor(db, siteName, connectionId, maxThreads=threads)
         thread = threading.Thread(target=processor, name=serviceId)
         thread.setDaemon(True)
         thread.running = True
         thread.start()
-        sleep(1)
 
 
 def bootStrapSubscriber(event):
@@ -45,6 +43,11 @@ def bootStrapSubscriber(event):
     db = event.database
     for serviceId, serviceName in serviceItems.items():
         siteName, serviceName = serviceName.split('@')
+        threads = 1
+        nameAndThreads = serviceName.split(' ')
+        serviceName = nameAndThreads[0]
+        if len(nameAndThreads) > 1:
+            threads = int(nameAndThreads[1])
         consumer = ConsumerService()
         logger.info('Starting consumer %s' % serviceId)
-        consumer.startProcessing(serviceId, db, siteName, serviceName)
+        consumer.startProcessing(serviceId, db, siteName, serviceName, threads)

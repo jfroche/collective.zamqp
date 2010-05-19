@@ -8,7 +8,7 @@ Copyright by Affinitic sprl
 $Id$
 """
 import grokcore.component as grok
-from zope.component import getUtilitiesFor, createObject, getUtility, queryAdapter
+from zope.component import getUtilitiesFor, createObject, getUtility, queryAdapter, queryUtility
 from zope.component.interfaces import IFactory
 from zope.interface import alsoProvides, implements, implementedBy
 
@@ -21,12 +21,18 @@ from affinitic.zamqp.interfaces import IMessage, IConsumer
 class ConsumerSet(CarrotConsumerSet):
     implements(IConsumerSet)
 
+    maxThreads = 1
+
     def _adaptMessage(self, message):
         alsoProvides(message, IMessage)
         return queryAdapter(message, IMessageWrapper, default=message)
 
     def _markMessage(self, message):
-        consumer = getUtility(IConsumer, message.delivery_info['exchange'])
+        exchange = message.delivery_info['exchange']
+        consumer = queryUtility(IConsumer, exchange)
+        if consumer is None:
+            routingKey = message.delivery_info['routing_key']
+            consumer = getUtility(IConsumer, "%s.%s" % (exchange, routingKey))
         return consumer._markMessage(message)
 
     def receive(self, message_data, message):

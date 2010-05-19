@@ -63,7 +63,7 @@ class ConsumerWorker(object):
 
 class MultiProcessor(object):
 
-    def __init__(self, db, sitePath, connectionId, waitTime=3.0):
+    def __init__(self, db, sitePath, connectionId, maxThreads, waitTime=0.3):
         self.db = db
         self.connection = self.db.open()
         self.waitTime = waitTime
@@ -71,7 +71,7 @@ class MultiProcessor(object):
         self.sitePath = sitePath
         self.registerConsumers(self.connectionId)
         self.threads = []
-        self.maxThreads = 1
+        self.maxThreads = maxThreads
 
     @property
     def threadName(self):
@@ -106,4 +106,5 @@ class MultiProcessor(object):
         thread.start()
 
     def __call__(self):
+        sleep(1)
         list(self.consumerSet.iterconsume())

@@ -62,7 +62,8 @@ class Consumer(grok.GlobalUtility, CarrotConsumer):
 
     def setBackend(self, backend):
         self._backend = backend
-        self.declare()
+        if self.auto_declare:
+            self.declare()
 
     backend = property(getBackend, setBackend)
 
