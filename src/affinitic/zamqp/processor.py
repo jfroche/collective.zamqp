@@ -9,16 +9,17 @@ $Id$
 """
 import random
 import logging
+import sys
 import threading
 import transaction
 from time import sleep
 from ZODB.POSException import ConflictError
-from zope.component import createObject
+from zope.component import createObject, queryUtility
 from zope.app.publication.zopepublication import ZopePublication
 from zope.app.component.hooks import setSite
 
 from affinitic.zamqp import logger
-from affinitic.zamqp.interfaces import IArrivedMessage
+from affinitic.zamqp.interfaces import IArrivedMessage, IErrorHandler
 
 log = logging.getLogger('affinitic.zamqp')
 
@@ -43,9 +44,14 @@ class ConsumerWorker(object):
         try:
             results = self.sm.subscribers((message,), IArrivedMessage)
         except Exception, error:
-            #XXX Send to Error queue ?
-            log.error('Error while running job %s on exchange %s' % (messageId, exchange))
-            log.exception(error)
+            transaction.abort()
+            exc_type, exc_value, exc_traceback = sys.exc_info()
+            errorHandler = queryUtility(IErrorHandler, name=exchange)
+            if errorHandler is not None:
+                errorHandler(message, error, exc_traceback)
+            else:
+                log.error('Error while running job %s on exchange %s' % (messageId, exchange))
+                log.exception(error)
         else:
             logger.debug("Before commit Message %s (status = '%s')" % (messageId,
                                                                  message._state))
@@ -53,12 +59,14 @@ class ConsumerWorker(object):
                 transaction.commit()
             except ConflictError:
                 logger.error('Conflict while working on message %s' % messageId)
-            logger.debug("Handled Message %s (status = '%s')" % (messageId,
-                                                                 message._state))
-            if not results:
-                #If there is no result
-                #XXX nobody handled the message: error queue/dead letter queue ?
-                pass
+                transaction.abort()
+            else:
+                logger.debug("Handled Message %s (status = '%s')" % (messageId,
+                                                                     message._state))
+                if not results:
+                    #If there is no result
+                    #XXX nobody handled the message: error queue/dead letter queue ?
+                    logger.warning('Nobody handled message %s on exchange %s' % (messageId, exchange))
 
 
 class MultiProcessor(object):

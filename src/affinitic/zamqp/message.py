@@ -47,7 +47,8 @@ class MessageWrapper(grok.Adapter, VTM):
         self.acknowledged = False
 
     def __getattr__(self, name):
-        try:
-            return super(MessageWrapper, self).__getattr__(name)
-        except AttributeError:
+        if hasattr(self.__class__, name):
+            return object.__getattribute__(self, name)
+            #return super(MessageWrapper, self).__getattr__(name)
+        else:
             return getattr(self.context, name)

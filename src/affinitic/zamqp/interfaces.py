@@ -102,3 +102,14 @@ class IConsumerSetFactory(IFactory):
         :param connectionId: the id of the broker connection where the consumers are connected to
         :rtype: ConsumerSet
         """
+
+
+class IErrorHandler(Interface):
+    """
+    Error handler for a specific exchange
+    """
+
+    def __call__(message, error, traceback):
+        """
+        Do something with the error and the traceback that we got while consuming message
+        """
