@@ -4,7 +4,9 @@ Changelog
 0.2 (unreleased)
 ----------------
 
-- Nothing changed yet.
+- Abort transaction correctly on error - send error to utility if available
+
+- Add multithreaded consumer (default to 1)
 
 
 0.1 (2010-03-20)
