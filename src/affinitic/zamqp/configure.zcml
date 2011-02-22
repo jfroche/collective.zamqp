@@ -6,12 +6,12 @@
     <include package="z3c.autoinclude" file="meta.zcml" />
     <includeDependencies package="." />
 
-    <configure zcml:condition="installed affinitic.zamqp">
+    <configure zcml:condition="installed five.dbevent">
       <include package="five.dbevent" />
     </configure>
 
     <subscriber
-        for="zope.app.appsetup.interfaces.IDatabaseOpenedWithRootEvent"
+        for="zope.processlifetime.IDatabaseOpenedWithRoot"
         handler=".service.bootStrapSubscriber"/>
 
     <grok:grok package="."/>
