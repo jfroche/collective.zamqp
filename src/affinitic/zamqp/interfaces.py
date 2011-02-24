@@ -113,3 +113,15 @@ class IErrorHandler(Interface):
         """
         Do something with the error and the traceback that we got while consuming message
         """
+
+
+class IErrorFixerHandler(Interface):
+    """
+    Error Handler that can fix a problem
+    """
+
+
+class IErrorConsumer(Interface):
+    """
+    Marker interface for a Consumer that handle error messages
+    """
