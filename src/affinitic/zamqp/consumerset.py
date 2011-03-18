@@ -15,7 +15,7 @@ from zope.interface import alsoProvides, implements, implementedBy
 from carrot.messaging import ConsumerSet as CarrotConsumerSet
 
 from affinitic.zamqp.interfaces import IMessageWrapper, IConsumerSet, IConsumerSetFactory
-from affinitic.zamqp.interfaces import IMessage, IConsumer
+from affinitic.zamqp.interfaces import IMessage, IConsumer, IErrorConsumer
 
 
 class ConsumerSet(CarrotConsumerSet):
@@ -59,7 +59,8 @@ class ConsumerSetFactory(object):
         consumerSet = ConsumerSet(conn)
         consumerSet.connection_id = connectionId
         for name, consumerUtility in getUtilitiesFor(IConsumer):
-            if consumerUtility.connection_id == connectionId:
+            if consumerUtility.connection_id == connectionId and \
+               not IErrorConsumer.providedBy(consumerUtility):
                 consumerSet.add_consumer(consumerUtility)
         return consumerSet
 
