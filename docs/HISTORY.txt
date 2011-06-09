@@ -1,7 +1,7 @@
 Changelog
 =========
 
-0.4 (unreleased)
+0.4 (2011-06-09)
 ----------------
 
 - Change transactionmanager order to be the very last one
