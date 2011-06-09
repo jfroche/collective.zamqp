@@ -1,7 +1,7 @@
 Changelog
 =========
 
-0.5 (unreleased)
+0.5 (2011-06-09)
 ----------------
 
 - Also compatible with Zope 2.10/2.11
