@@ -4,13 +4,13 @@ Changelog
 0.7 (unreleased)
 ----------------
 
-- Nothing changed yet.
+- Fix subscriber when config code is not present in zope config file
 
 
 0.6 (2011-06-14)
 ----------------
 
-- Nothing changed yet.
+- Remove logging definition from code, should be in config file
 
 
 0.5 (2011-06-09)
