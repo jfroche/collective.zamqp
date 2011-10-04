@@ -18,7 +18,7 @@ from affinitic.zamqp.interfaces import IConsumer, IErrorConsumer
 class ErrorManager(object):
 
     def __init__(self, connectionId):
-        self.connectionId
+        self.connectionId = connectionId
 
     @property
     def errors(self):
@@ -47,5 +47,5 @@ class ErrorConsumerSetFactory(ConsumerSetFactory):
                 consumerSet.add_consumer(consumerUtility)
         return consumerSet
 
-grok.global_utility(ConsumerSetFactory,
+grok.global_utility(ErrorConsumerSetFactory,
     provides=IFactory, name='ErrorConsumerSet')

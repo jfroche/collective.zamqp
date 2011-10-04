@@ -1,10 +1,28 @@
 Changelog
 =========
 
-0.4 (unreleased)
+0.7 (unreleased)
 ----------------
 
-- Nothing changed yet.
+- Fix subscriber when config code is not present in zope config file
+
+
+0.6 (2011-06-14)
+----------------
+
+- Remove logging definition from code, should be in config file
+
+
+0.5 (2011-06-09)
+----------------
+
+- Also compatible with Zope 2.10/2.11
+
+
+0.4 (2011-06-09)
+----------------
+
+- Change transactionmanager order to be the very last one
 
 
 0.3 (2011-02-22)

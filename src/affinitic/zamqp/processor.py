@@ -15,7 +15,10 @@ import transaction
 from time import sleep
 from ZODB.POSException import ConflictError
 from zope.component import createObject, queryUtility
-from zope.component.hooks import setSite
+try:
+    from zope.component.hooks import setSite
+except ImportError:
+    from zope.app.component.hooks import setSite
 
 from affinitic.zamqp import logger
 from affinitic.zamqp.interfaces import IArrivedMessage, IErrorHandler

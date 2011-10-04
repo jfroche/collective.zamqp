@@ -16,7 +16,7 @@ logger = logging.getLogger('affinitic.zamqp')
 
 def getAutostartServiceNames():
     """get a list of services to start"""
-    config = getConfiguration().product_config
+    config = getattr(getConfiguration(), 'product_config', None)
     if config is not None:
         task_config = config.get('affinitic.zamqp', None)
         if task_config:

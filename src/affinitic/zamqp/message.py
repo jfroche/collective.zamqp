@@ -52,3 +52,7 @@ class MessageWrapper(grok.Adapter, VTM):
             #return super(MessageWrapper, self).__getattr__(name)
         else:
             return getattr(self.context, name)
+
+    def sortKey(self, *ignored):
+        "Always be the last one !"
+        return '~zamqp 9'
