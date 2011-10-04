@@ -15,7 +15,6 @@ import transaction
 from time import sleep
 from ZODB.POSException import ConflictError
 from zope.component import createObject, queryUtility
-from zope.app.publication.zopepublication import ZopePublication
 from zope.component.hooks import setSite
 
 from affinitic.zamqp import logger
@@ -87,7 +86,7 @@ class MultiProcessor(object):
 
     def getSite(self):
         self.root = self.connection.root()
-        return getattr(self.root[ZopePublication.root_name], self.sitePath)
+        return getattr(self.root['Application'], self.sitePath)
 
     def registerConsumers(self, connectionId):
         self.consumerSet = createObject('ConsumerSet', connectionId)
