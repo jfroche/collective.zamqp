@@ -4,21 +4,20 @@ Publisher and transaction
 If the publisher is transaction aware, a message sent to the publisher will be
 transfered to the message broker once the transaction has been commited::
 
-    >>> from affinitic.zamqp.connection import BrokerConnection
-    >>> class FakeBackend(object):
+    >>> from kombu.tests.mocks import Transport
+    >>> class FakeBackend(Transport):
     ...
     ...     def establish_connection(self):
     ...         print 'establishing connection with backend'
-    ...
-    ...     def exchange_declare(self, exchange, type, durable, auto_delete):
-    ...         self.establish_connection()
+    ...         return super(FakeBackend, self).establish_connection()
 
+    >>> from affinitic.zamqp.connection import BrokerConnection
     >>> class DummyBrokerConnection(BrokerConnection):
     ...     hostname = 'localhost'
     ...     port = 12
     ...
-    ...     def create_backend(self):
-    ...         return FakeBackend()
+    ...     def create_transport(self):
+    ...         return FakeBackend(client=self)
 
     >>> from zope.component import provideUtility
     >>> from affinitic.zamqp.interfaces import IBrokerConnection
@@ -38,8 +37,8 @@ transfered to the message broker once the transaction has been commited::
     >>> import transaction
     >>> tr = transaction.begin()
     >>> pub = FakePublisher()
-    >>> pub._register()
     establishing connection with backend
+    >>> pub._register()
     >>> pub._queueOfPendingMessage
     []
 
@@ -68,8 +67,8 @@ If the transaction is aborted, nothing gets sent to the server:
 
     >>> tr = transaction.begin()
     >>> pub = FakePublisher()
+
     >>> pub._register()
-    establishing connection with backend
     >>> pub._queueOfPendingMessage
     []
     >>> pub.send('My Message', priority=10)
@@ -103,8 +102,7 @@ If the publisher is not transaction awe, the message gets sent directly to the s
 
 Makes coverage happy. A backend can be assigned separatly
 
-    >>> pub.backend = FakeBackend()
-    establishing connection with backend
+    >>> pub.backend = FakeBackend(pub)
 
 Command line parsing for publisher
 ----------------------------------
@@ -172,6 +170,5 @@ Using ``zope.interface`` to check wheter our implementation does what it promise
 Check the Consumer::
 
     >>> from affinitic.zamqp.interfaces import IPublisher
-    >>> from affinitic.zamqp.publisher import Publisher
-    >>> verifyObject(IPublisher, Publisher())
+    >>> verifyObject(IPublisher, FakePublisher())
     True

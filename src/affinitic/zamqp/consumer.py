@@ -9,7 +9,7 @@ $Id$
 """
 from zope.interface import alsoProvides
 from zope.component import getUtility, queryAdapter
-from carrot.messaging import Consumer as CarrotConsumer
+from kombu.compat import Consumer as CarrotConsumer
 from affinitic.zamqp.interfaces import IConsumer, IBrokerConnection, IMessage, IMessageWrapper
 import grokcore.component as grok
 
@@ -19,33 +19,19 @@ class Consumer(grok.GlobalUtility, CarrotConsumer):
     grok.baseclass()
     grok.implements(IConsumer)
 
-    queue = None
     messageInterface = None
     connection_id = None
 
+    queues = []  # kombu.messaging expects iterable here
+
     def __init__(self, connection=None, queue=None, exchange=None,
-            routing_key=None, **kwargs):
-        self._connection = connection
-        backend = kwargs.get("backend", None)
-        if backend is not None:
-            self.backend = backend
-        self.queue = queue or self.queue
-        self.queue = queue or self.queue
-        self.exchange = exchange or self.exchange
-        self.routing_key = routing_key or self.routing_key
-        self.callbacks = []
-        self.durable = kwargs.get("durable", self.durable)
-        self.exclusive = kwargs.get("exclusive", self.exclusive)
-        self.auto_delete = kwargs.get("auto_delete", self.auto_delete)
-        self.exchange_type = kwargs.get("exchange_type", self.exchange_type)
-        self.warn_if_exists = kwargs.get("warn_if_exists",
-                                         self.warn_if_exists)
-        self.auto_ack = kwargs.get("auto_ack", self.auto_ack)
-        self.auto_declare = kwargs.get("auto_declare", self.auto_declare)
+            routing_key=None, exchange_type=None, durable=None,
+            exclusive=None, auto_delete=None, **kwargs):
         self._backend = None
-        if self.exclusive:
-            self.auto_delete = True
-        self.consumer_tag = self._generate_consumer_tag()
+        self._connection = connection
+        super(Consumer, self).__init__(self.connection, queue, exchange,
+                                       routing_key, exchange_type, durable,
+                                       exclusive, auto_delete, **kwargs)
 
     @property
     def connection(self):

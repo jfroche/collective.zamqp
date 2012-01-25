@@ -22,7 +22,7 @@ connection::
     >>> consumer = DummyConsumer()
     >>> conn = consumer.connection
     >>> conn
-    <DummyBrokerConnection object at ...>
+    <BrokerConnection: ...>
 
 And the connection is made once for all::
 
@@ -32,7 +32,7 @@ And the connection is made once for all::
 The backend is also defined through the connection::
 
     >>> consumer.backend
-    <carrot.backends.pyamqplib.Backend object at ...>
+    <kombu.transport.amqplib.Channel object at ...>
 
 Consumer callbacks and the Message Translator pattern
 =====================================================
@@ -113,6 +113,7 @@ Now each time a message is received, we adapt the message and print it::
 
 Makes coverage happy. A backend can be assigned separatly
 
+    >>> consumer.auto_declare = False
     >>> consumer.backend = 'foo'
     >>> consumer.backend
     'foo'
@@ -127,6 +128,5 @@ Using ``zope.interface`` to check wheter our implementation does what it promise
 Check the Consumer::
 
     >>> from affinitic.zamqp.interfaces import IConsumer
-    >>> from affinitic.zamqp.consumer import Consumer
-    >>> verifyObject(IConsumer, Consumer())
+    >>> verifyObject(IConsumer, DummyConsumer())
     True

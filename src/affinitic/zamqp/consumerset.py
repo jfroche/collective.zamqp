@@ -12,7 +12,7 @@ from zope.component import getUtilitiesFor, createObject, getUtility, queryAdapt
 from zope.component.interfaces import IFactory
 from zope.interface import alsoProvides, implements, implementedBy
 
-from carrot.messaging import ConsumerSet as CarrotConsumerSet
+from kombu.compat import ConsumerSet as CarrotConsumerSet
 
 from affinitic.zamqp.interfaces import IMessageWrapper, IConsumerSet, IConsumerSetFactory
 from affinitic.zamqp.interfaces import IMessage, IConsumer, IErrorConsumer

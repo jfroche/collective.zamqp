@@ -33,7 +33,7 @@ Python itself has different libraries available that implement the protocol. Her
     * `txAMQP <http://pypi.python.org/pypi/txAMQP>`_
 
 As you might not want to deal with a "low level" API, there is a higher level API available via
-`carrot <http://pypi.python.org/pypi/carrot>`_.
+`kombu <http://pypi.python.org/pypi/kombu>`_.
 
 Why this package ?
 ------------------
@@ -58,7 +58,7 @@ What do we mean by Zope integration ?
 Dependencies
 ------------
 
-We use `carrot <http://pypi.python.org/pypi/carrot>`_ to send/receive messages and enable consumers in separate threads within Zope. We use as much as possible the API defined by `carrot <http://pypi.python.org/pypi/carrot>`_. So you might want also to read the `carrot documentation <http://github.com/ask/carrot>`_.
+We use `kombu <http://pypi.python.org/pypi/kombu>`_ to send/receive messages and enable consumers in separate threads within Zope. We use as much as possible the API defined by `kombu <http://pypi.python.org/pypi/kombu>`_. So you might want also to read the `kombu documentation <http://github.com/ask/kombu>`_.
 
 We use `grok <http://grok.zope.org>`_ to define our zope components. This avoids us to write too much
 zcml.

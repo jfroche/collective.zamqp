@@ -13,8 +13,8 @@ import getopt
 import grokcore.component as grok
 from zope.component import getUtility
 
-from carrot.connection import BrokerConnection
-from carrot.messaging import Publisher as CarrotPublisher
+from kombu.connection import BrokerConnection
+from kombu.compat import Publisher as CarrotPublisher
 
 from affinitic.zamqp.interfaces import IPublisher, IBrokerConnection
 from affinitic.zamqp.transactionmanager import VTM
@@ -24,30 +24,21 @@ class Publisher(grok.GlobalUtility, CarrotPublisher, VTM):
     __doc__ = CarrotPublisher.__doc__
     grok.baseclass()
     grok.implements(IPublisher)
+
     connection_id = None
 
-    def __init__(self, connection=None, exchange=None, routing_key=None, **kwargs):
-        self._connection = connection
-        self.exchange = exchange or self.exchange
-        self.routing_key = routing_key or self.routing_key
-        self.delivery_mode = kwargs.get("delivery_mode", self.delivery_mode)
-        self.delivery_mode = self.DELIVERY_MODES.get(self.delivery_mode,
-                                                     self.delivery_mode)
-        self.exchange_type = kwargs.get("exchange_type", self.exchange_type)
-        self.durable = kwargs.get("durable", self.durable)
-        self.auto_delete = kwargs.get("auto_delete", self.auto_delete)
-        self.serializer = kwargs.get("serializer", self.serializer)
-        self.auto_declare = kwargs.get("auto_declare", self.auto_declare)
-        self._closed = False
+    def __init__(self, connection=None, exchange=None, routing_key=None,
+                 exchange_type=None, durable=None, auto_delete=None,
+                 channel=None, **kwargs):
         self._backend = None
-        self._closed = False
+        self._connection = connection
         self._queueOfPendingMessage = None
+        super(Publisher, self).__init__(self.connection, exchange, routing_key,
+                                        exchange_type, durable, auto_delete,
+                                        channel, **kwargs)
 
     def _begin(self):
         self._queueOfPendingMessage = []
-        # establish a connection even if the message might
-        # not be send directly
-        backend = self.backend
 
     _sendToBroker = CarrotPublisher.send
 

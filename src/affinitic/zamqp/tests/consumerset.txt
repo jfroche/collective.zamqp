@@ -70,12 +70,12 @@ the id of the connection::
     >>> from zope.component import createObject
     >>> consumerSet = createObject('ConsumerSet', 'bar')
     >>> consumerSet
-    <affinitic.zamqp.consumerset.ConsumerSet object at ...>
+    <Consumer: [<bound Queue ... blue(direct) ...>, <bound Queue ... red(direct) ...>]>
 
 We already have our two consumers in this consumerSet::
 
-    >>> consumerSet.consumers
-    [<BlueMessageConsumer object at ...>, <RedMessageConsumer object at ...>]
+    >>> consumerSet.queues
+    [<bound Queue ... blue(direct) ...>, <bound Queue ... red(direct) ...>]
 
 Now let's fake reception of a message on the Blue queue. We create a basic message first::
 

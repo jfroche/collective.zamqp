@@ -26,7 +26,7 @@ class IBrokerConnection(Interface):
 
     password = Attribute("The user's password to access the broker")
 
-    virtualHost = Attribute('The virtual host id')
+    virtual_host = Attribute('The virtual host id')
 
 
 class IBrokerConnectionFactory(IFactory):

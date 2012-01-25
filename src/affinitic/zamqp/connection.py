@@ -12,12 +12,12 @@ from zope.component import getUtility
 from zope.component.interfaces import IFactory
 from zope.interface import implementedBy
 
-from carrot.connection import BrokerConnection as CarrotBrokerConnection
+from kombu.connection import BrokerConnection as KombuBrokerConnection
 
 from affinitic.zamqp.interfaces import IBrokerConnection, IBrokerConnectionFactory
 
 
-class BrokerConnection(grok.GlobalUtility, CarrotBrokerConnection):
+class BrokerConnection(grok.GlobalUtility, KombuBrokerConnection):
     """
     Connection utility to the message broker
 
@@ -26,16 +26,12 @@ class BrokerConnection(grok.GlobalUtility, CarrotBrokerConnection):
     grok.implements(IBrokerConnection)
     grok.baseclass()
 
-    port = 5672
-    password = None
-    userid = None
+    id = None  # only one not already defined in KombuBrokerConnection
     hostname = None
-    virtualHost = None
-    id = None
-
-    def __init__(self):
-        self._closed = None
-        self._connection = None
+    port = 5672  # is defined None in KombuBrokerConnection
+    userid = None
+    password = None
+    virtual_host = "/"
 
 
 class BrokerConnectionFactory(object):

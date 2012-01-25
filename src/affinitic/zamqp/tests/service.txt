@@ -60,7 +60,7 @@ As we can't receive messages in this test from a message broker, we mock the ite
     >>> def fakeIterConsume(self):
     ...     logger.debug('Consuming on %s with connection id %s' % (self, self.connection_id))
     ...     return []
-    >>> from carrot.messaging import ConsumerSet
+    >>> from kombu.compat import ConsumerSet
     >>> ConsumerSet.iterconsume_bak = ConsumerSet.iterconsume
     >>> ConsumerSet.iterconsume = fakeIterConsume
 
@@ -91,8 +91,8 @@ This starts a couple of new threads so let's wait a bit
 The log should have now informations telling us that the two thread were consuming::
 
     >>> print stream.getvalue()
-    Consuming on <affinitic.zamqp.consumerset.ConsumerSet object ...> with connection id foo
-    Consuming on <affinitic.zamqp.consumerset.ConsumerSet object ...> with connection id bar
+    Consuming on <Consumer: []> with connection id foo
+    Consuming on <Consumer: [<...>, <...>]> with connection id bar
     <BLANKLINE>
 
 Back to normal, removing our changes::
