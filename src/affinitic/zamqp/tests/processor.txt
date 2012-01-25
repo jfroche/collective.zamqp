@@ -131,6 +131,8 @@ nobody acknowledged it::
     Notify new message 999 in exchange: SuperExchange
     Before commit Message 999 (status = 'NEW')
     Handled Message 999 (status = 'NEW')
+    Nobody handled message 999 on exchange SuperExchange
+    <BLANKLINE>
 
 Process a message with one subscription adapter
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -152,6 +154,7 @@ Register a subscription adapter that log a dummy message and acknowledge the dum
     ...     logger = logging.getLogger('affinitic.zamqp')
     ...     logger.debug('Subscriber handling message %s' % message)
     ...     message.ack()
+    ...     return True
 
     >>> from affinitic.zamqp.interfaces import IArrivedMessage
     >>> provideSubscriptionAdapter(loggingSubscriber, [IDummyMessage], IArrivedMessage)
@@ -174,6 +177,7 @@ being acknowledged::
     Subscriber handling message <affinitic.zamqp.message.MessageWrapper object ...>
     Before commit Message 1000 (status = 'NEW')
     Handled Message 1000 (status = 'ACK')
+    <BLANKLINE>
 
 Process a message with one failing subscription adapter
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

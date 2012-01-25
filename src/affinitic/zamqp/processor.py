@@ -73,7 +73,7 @@ class ConsumerWorker(object):
 
 class MultiProcessor(object):
 
-    def __init__(self, db, sitePath, connectionId, maxThreads, waitTime=0.3):
+    def __init__(self, db, sitePath, connectionId, maxThreads=1, waitTime=0.3):
         self.db = db
         self.connection = self.db.open()
         self.waitTime = waitTime

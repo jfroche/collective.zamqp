@@ -83,11 +83,17 @@ We can at last read the configuration and initialise the two thread, one for con
 
     >>> bootStrapSubscriber(event)
 
+This starts a couple of new threads so let's wait a bit
+
+    >>> from time import sleep
+    >>> sleep(1.5)
+
 The log should have now informations telling us that the two thread were consuming::
 
     >>> print stream.getvalue()
     Consuming on <affinitic.zamqp.consumerset.ConsumerSet object ...> with connection id foo
     Consuming on <affinitic.zamqp.consumerset.ConsumerSet object ...> with connection id bar
+    <BLANKLINE>
 
 Back to normal, removing our changes::
 
