@@ -37,8 +37,8 @@ transfered to the message broker once the transaction has been commited::
     >>> import transaction
     >>> tr = transaction.begin()
     >>> pub = FakePublisher()
-    establishing connection with backend
     >>> pub._register()
+    establishing connection with backend
     >>> pub._queueOfPendingMessage
     []
 
