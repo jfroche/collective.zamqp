@@ -30,15 +30,35 @@ class Publisher(grok.GlobalUtility, CarrotPublisher, VTM):
     def __init__(self, connection=None, exchange=None, routing_key=None,
                  exchange_type=None, durable=None, auto_delete=None,
                  channel=None, **kwargs):
+
         self._backend = None
         self._connection = connection
         self._queueOfPendingMessage = None
-        super(Publisher, self).__init__(self.connection, exchange, routing_key,
+
+        # Allow class variables to provide defaults
+        exchange = exchange or getattr(self, "exchange", None)
+        routing_key = routing_key or getattr(self, "routing_key", None)
+        exchange_type = exchange_type or getattr(self, "exchange_type", None)
+        durable = durable or getattr(self, "durable", None)
+        auto_delete = auto_delete or getattr(self, "auto_delete", None)
+
+        serializer = kwargs.get("serializer",
+                                getattr(self, "serializer", None))
+        auto_declare = kwargs.get("auto_declare",
+                                  getattr(self, "auto_declare", None))
+        kwargs.update({
+            "serializer": serializer,
+            "auto_declare": auto_declare
+            })
+
+        super(Publisher, self).__init__(None, exchange, routing_key,
                                         exchange_type, durable, auto_delete,
                                         channel, **kwargs)
 
     def _begin(self):
         self._queueOfPendingMessage = []
+        # establish a connection even if the message might not be send directly
+        self.backend
 
     _sendToBroker = CarrotPublisher.send
 
@@ -72,10 +92,21 @@ class Publisher(grok.GlobalUtility, CarrotPublisher, VTM):
     def _abort(self):
         self._queueOfPendingMessage = None
 
+    def declare(self):
+        # Declaring exchange cannot be done without channel and has been
+        # delayed until connection is used at the first time
+        if self.channel and self.exchange.name:
+            self.exchange.declare()
+    send.__doc__ = CarrotPublisher.declare.__doc__
+
     @property
     def connection(self):
         if self._connection is None:
-            self._connection = getUtility(IBrokerConnection, name=self.connection_id)
+            self._connection =\
+                getUtility(IBrokerConnection, name=self.connection_id)
+            # Setting channel and exchange have been delayed to here:
+            self.channel = self._connection.default_channel
+            self.exchange = self.exchange(self.channel)
         return self._connection
 
     def getBackend(self):
