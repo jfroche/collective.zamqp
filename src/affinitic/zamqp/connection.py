@@ -26,12 +26,28 @@ class BrokerConnection(grok.GlobalUtility, KombuBrokerConnection):
     grok.implements(IBrokerConnection)
     grok.baseclass()
 
-    id = None  # only one not already defined in KombuBrokerConnection
-    hostname = None
-    port = 5672  # is defined None in KombuBrokerConnection
+    id = None
+    hostname = "localhost"
+    port = 5672
     userid = None
     password = None
     virtual_host = "/"
+
+    def __init__(self, hostname=None, userid=None,
+                 password=None, virtual_host=None, port=None, insist=False,
+                 ssl=False, transport=None, connect_timeout=5,
+                 transport_options=None, login_method=None, **kwargs):
+
+        # Allow class variables to provide defaults
+        hostname = hostname or self.hostname
+        port = port or self.port
+        userid = userid or self.userid
+        password = password or self.password
+        virtual_host = virtual_host or self.virtual_host
+
+        super(BrokerConnection, self).__init__(
+            hostname, userid, password, virtual_host, port, insist,
+            ssl, transport, login_method, **kwargs)
 
 
 class BrokerConnectionFactory(object):
