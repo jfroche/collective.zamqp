@@ -14,12 +14,14 @@
       <subscriber
           for="zope.processlifetime.IDatabaseOpenedWithRoot"
           handler=".service.bootStrapSubscriber"/>
-      </configure>
+    </configure>
 
-    <configure zcml:condition="installed zope.app.appsetup">
-      <subscriber
-          for="zope.app.appsetup.interfaces.IDatabaseOpenedWithRootEvent"
-          handler=".service.bootStrapSubscriber"/>
+    <configure zcml:condition="not-installed zope.processlifetime">
+      <configure zcml:condition="installed zope.app.appsetup">
+        <subscriber
+            for="zope.app.appsetup.interfaces.IDatabaseOpenedWithRootEvent"
+            handler=".service.bootStrapSubscriber"/>
+      </configure>
     </configure>
 
     <grok:grok package="."/>
