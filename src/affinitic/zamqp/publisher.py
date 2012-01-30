@@ -11,7 +11,7 @@ import sys
 import getopt
 
 import grokcore.component as grok
-from zope.component import getUtility
+from zope.component import getUtility, queryUtility
 
 from kombu.connection import BrokerConnection
 from kombu.compat import Publisher as CarrotPublisher
@@ -31,9 +31,13 @@ class Publisher(grok.GlobalUtility, CarrotPublisher, VTM):
                  exchange_type=None, durable=None, auto_delete=None,
                  channel=None, **kwargs):
 
-        self._backend = None
-        self._connection = connection
         self._queueOfPendingMessage = None
+
+        if connection:
+            self._connection = connection
+        else:
+            self._connection =\
+                queryUtility(IBrokerConnection, name=self.connection_id)
 
         # Allow class variables to provide defaults
         exchange = exchange or getattr(self, "exchange", None)
@@ -51,16 +55,27 @@ class Publisher(grok.GlobalUtility, CarrotPublisher, VTM):
             "auto_declare": auto_declare
             })
 
-        super(Publisher, self).__init__(None, exchange, routing_key,
-                                        exchange_type, durable, auto_delete,
-                                        channel, **kwargs)
+        if self._connection:
+            super(Publisher, self).__init__(
+                self._connection, exchange, routing_key, exchange_type,
+                durable, auto_delete, channel, **kwargs)
+        else:
+            kwargs.update({
+                "exchange": exchange, "routing_key": routing_key,
+                "exchange_type": exchange_type, "durable": durable,
+                "auto_delete": auto_delete
+                })
+            self._lazy_init_kwargs = kwargs
 
-    def _begin(self):
-        self._queueOfPendingMessage = []
-        # establish a connection even if the message might not be send directly
-        self.backend
-
-    _sendToBroker = CarrotPublisher.send
+    @property
+    def connection(self):
+        if self._connection is None:
+            # perform lazy init when connection is needed for the first time
+            self._connection =\
+                getUtility(IBrokerConnection, name=self.connection_id)
+            super(Publisher, self).__init__(
+                self._connection, **self._lazy_init_kwargs)
+        return self._connection
 
     def send(self, message_data, routing_key=None, delivery_mode=None,
             mandatory=False, immediate=False, priority=0, content_type=None,
@@ -77,50 +92,27 @@ class Publisher(grok.GlobalUtility, CarrotPublisher, VTM):
                                 'serializer': serializer}}
             self._queueOfPendingMessage.append(msgInfo)
         else:
-            self._sendToBroker(message_data, routing_key, delivery_mode,
-                               mandatory, immediate, priority, content_type,
-                               content_encoding, serializer)
-
+            self._sendToBroker(
+                message_data, routing_key, delivery_mode, mandatory,
+                immediate, priority, content_type, content_encoding,
+                serializer)
     send.__doc__ = CarrotPublisher.send.__doc__
+
+    _sendToBroker = CarrotPublisher.send
+
+    def _begin(self):
+        self._queueOfPendingMessage = []
+        # establish a connection even if the message might not be send directly
+        self.connection
+
+    def _abort(self):
+        self._queueOfPendingMessage = None
 
     def _finish(self):
         for msgInfo in self._queueOfPendingMessage:
             message_data = msgInfo['data']
             sendInfo = msgInfo['info']
             self._sendToBroker(message_data, **sendInfo)
-
-    def _abort(self):
-        self._queueOfPendingMessage = None
-
-    def declare(self):
-        # Declaring exchange cannot be done without channel and has been
-        # delayed until connection is used at the first time
-        if self.channel and self.exchange.name:
-            self.exchange.declare()
-    send.__doc__ = CarrotPublisher.declare.__doc__
-
-    @property
-    def connection(self):
-        if self._connection is None:
-            self._connection =\
-                getUtility(IBrokerConnection, name=self.connection_id)
-            # Setting channel and exchange have been delayed to here:
-            self.channel = self._connection.default_channel
-            self.exchange = self.exchange(self.channel)
-        return self._connection
-
-    def getBackend(self):
-        if self._backend is None:
-            self._backend = self.connection.create_backend()
-            if self.auto_declare:
-                self.declare()
-        return self._backend
-
-    def setBackend(self, backend):
-        self._backend = backend
-        self.declare()
-
-    backend = property(getBackend, setBackend)
 
 
 def usage():
