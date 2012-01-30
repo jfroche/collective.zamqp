@@ -23,6 +23,10 @@ class ConsumerSet(CarrotConsumerSet):
 
     maxThreads = 1
 
+    def add_consumer(self, consumer):
+        assert consumer.connection is not None  # wake up a lazy consumer
+        super(ConsumerSet, self).add_consumer(consumer)
+
     def _adaptMessage(self, message):
         alsoProvides(message, IMessage)
         return queryAdapter(message, IMessageWrapper, default=message)
