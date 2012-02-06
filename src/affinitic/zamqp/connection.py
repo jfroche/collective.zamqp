@@ -8,16 +8,24 @@ Copyright by Affinitic sprl
 $Id$
 """
 import grokcore.component as grok
+
 from zope.component import getUtility
 from zope.component.interfaces import IFactory
 from zope.interface import implementedBy
 
-from kombu.connection import BrokerConnection as KombuBrokerConnection
+from pika import\
+    PlainCredentials, ConnectionParameters, SelectConnection,\
+    BasicProperties
+from pika.reconnection_strategies import SimpleReconnectionStrategy
 
-from affinitic.zamqp.interfaces import IBrokerConnection, IBrokerConnectionFactory
+from affinitic.zamqp.interfaces import\
+    IBrokerConnection, IBrokerConnectionFactory
+
+import logging
+logger = logging.getLogger('affinitic.zamqp')
 
 
-class BrokerConnection(grok.GlobalUtility, KombuBrokerConnection):
+class BrokerConnection(grok.GlobalUtility):
     """
     Connection utility to the message broker
 
@@ -26,42 +34,53 @@ class BrokerConnection(grok.GlobalUtility, KombuBrokerConnection):
     grok.implements(IBrokerConnection)
     grok.baseclass()
 
-    id = None
     hostname = "localhost"
     port = 5672
-    userid = None
-    password = None
     virtual_host = "/"
 
-    def __init__(self, hostname=None, userid=None,
-                 password=None, virtual_host=None, port=None, insist=False,
-                 ssl=False, transport=None, connect_timeout=5,
-                 transport_options=None, login_method=None, **kwargs):
+    userid = None
+    password = None
 
-        # Allow class variables to provide defaults
-        hostname = hostname or self.hostname
-        port = port or self.port
-        userid = userid or self.userid
-        password = password or self.password
-        virtual_host = virtual_host or self.virtual_host
+    def __init__(self):
+        self.connecting = False
+        self.connected = False
 
-        super(BrokerConnection, self).__init__(
-            hostname, userid, password, virtual_host, port, insist,
-            ssl, transport, login_method, **kwargs)
+    def connect(self):
+        if self.connecting or self.connected:
+            return
+
+        # https://github.com/pika/pika/blob/master/pika/connection.py
+        self.connecting = True
+
+        credentials = PlainCredentials(self.userid, self.password,
+                                       erase_on_connect=False)
+        parameters = ConnectionParameters(self.hostname, self.port,
+                                          self.virtual_host,
+                                          credentials=credentials)
+        strategy = SimpleReconnectionStrategy()
+
+        self.connection = SelectConnection(parameters=parameters,
+                                           on_open_callback=self.on_connect,
+                                           reconnection_strategy=strategy)
+
+    def on_connect(self, connection):
+        self.connecting = False
+        self.connected = True
+        logger.info("Connected")
+        import pdb; pdb.set_trace()
 
 
 class BrokerConnectionFactory(object):
     grok.implements(IBrokerConnectionFactory)
 
-    title = 'BrokerConnection Factory'
-    description = 'Help creating a new Broker connection'
+    title = u'BrokerConnection Factory'
+    description = u'Help creating a new Broker connection'
 
     def getInterfaces(self):
         return implementedBy(BrokerConnection)
 
-    def __call__(self, connectionId):
-        return getUtility(IBrokerConnection, name=connectionId).__class__()
-
+    def __call__(self, connection_id):
+        return getUtility(IBrokerConnection, name=connection_id).__class__()
 
 grok.global_utility(BrokerConnectionFactory,
-    provides=IFactory, name='AMQPBrokerConnection')
+                    provides=IFactory, name='AMQPBrokerConnection')

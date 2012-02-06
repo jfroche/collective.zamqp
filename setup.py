@@ -39,7 +39,7 @@ setup(name='affinitic.zamqp',
                   'collective.sphinx.includedoc']),
       install_requires=[
           'setuptools',
-          'kombu',
+          'pika',
           'transaction',
           'zope.component',
           'grokcore.component',

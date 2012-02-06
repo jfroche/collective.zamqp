@@ -8,20 +8,28 @@ Copyright by Affinitic sprl
 $Id$
 """
 import grokcore.component as grok
-from zope.component import getUtilitiesFor, createObject, getUtility, queryAdapter, queryUtility
+
+from zope.component import\
+    getUtilitiesFor, createObject, getUtility, queryAdapter, queryUtility
 from zope.component.interfaces import IFactory
 from zope.interface import alsoProvides, implements, implementedBy
 
-from kombu.compat import ConsumerSet as CarrotConsumerSet
+from affinitic.zamqp.interfaces import\
+    IMessage, IConsumer, IErrorConsumer,\
+    IMessageWrapper, IConsumerSet, IConsumerSetFactory
 
-from affinitic.zamqp.interfaces import IMessageWrapper, IConsumerSet, IConsumerSetFactory
-from affinitic.zamqp.interfaces import IMessage, IConsumer, IErrorConsumer
 
-
-class ConsumerSet(CarrotConsumerSet):
+class ConsumerSet(object):
     implements(IConsumerSet)
 
-    maxThreads = 1
+    def __init__(self, connection):
+        import pdb; pdb.set_trace()
+        # for name, consumerUtility in getUtilitiesFor(IConsumer):
+
+        #     if consumerUtility.connection_id == connection_id and \
+        #        not IErrorConsumer.providedBy(consumerUtility):
+        #         consumer_set.add_consumer(consumerUtility)
+        # return consumer_set
 
     def add_consumer(self, consumer):
         assert consumer.connection is not None  # wake up a lazy consumer
@@ -52,21 +60,15 @@ class ConsumerSet(CarrotConsumerSet):
 class ConsumerSetFactory(object):
     grok.implements(IConsumerSetFactory)
 
-    title = 'ConsumerSet Factory'
-    description = 'Help creating a new Consumer Set'
+    title = u'ConsumerSet Factory'
+    description = u'Help creating a new Consumer Set'
 
     def getInterfaces(self):
         return implementedBy(ConsumerSet)
 
-    def __call__(self, connectionId):
-        conn = createObject('AMQPBrokerConnection', connectionId)
-        consumerSet = ConsumerSet(conn)
-        consumerSet.connection_id = connectionId
-        for name, consumerUtility in getUtilitiesFor(IConsumer):
-            if consumerUtility.connection_id == connectionId and \
-               not IErrorConsumer.providedBy(consumerUtility):
-                consumerSet.add_consumer(consumerUtility)
-        return consumerSet
+    def __call__(self, connection_id):
+        connection = createObject('AMQPBrokerConnection', connection_id)
+        return ConsumerSet(connection)
 
 grok.global_utility(ConsumerSetFactory,
-    provides=IFactory, name='ConsumerSet')
+                    provides=IFactory, name='ConsumerSet')

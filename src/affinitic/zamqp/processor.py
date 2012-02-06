@@ -37,7 +37,7 @@ class ConsumerWorker(object):
     def __call__(self, message):
         messageId = message.delivery_info.get('delivery_tag')
         exchange = message.delivery_info.get('exchange')
-        logger.debug('Notify new message %s in exchange: %s' % (messageId,
+        logger.info('Notify new message %s in exchange: %s' % (messageId,
                                                                 exchange))
         setSite(self.site)
         #XXX all this should be implemented with a with statement
@@ -55,7 +55,7 @@ class ConsumerWorker(object):
                 log.error('Error while running job %s on exchange %s' % (messageId, exchange))
                 log.exception(error)
         else:
-            logger.debug("Before commit Message %s (status = '%s')" % (messageId,
+            logger.info("Before commit Message %s (status = '%s')" % (messageId,
                                                                  message._state))
             try:
                 transaction.commit()
@@ -63,7 +63,7 @@ class ConsumerWorker(object):
                 logger.error('Conflict while working on message %s' % messageId)
                 transaction.abort()
             else:
-                logger.debug("Handled Message %s (status = '%s')" % (messageId,
+                logger.info("Handled Message %s (status = '%s')" % (messageId,
                                                                      message._state))
                 if not results:
                     #If there is no result
@@ -108,7 +108,7 @@ class MultiProcessor(object):
                 break
         processor = ConsumerWorker(self.getSite())
         newThreadName = 'ConsumerWork-%s' % (len(self.threads))
-        logger.debug('Thread %s is starting new thread %s' % (self.threadName, newThreadName))
+        logger.info('Thread %s is starting new thread %s' % (self.threadName, newThreadName))
         thread = threading.Thread(
             name=newThreadName,
             target=processor, args=(message,))

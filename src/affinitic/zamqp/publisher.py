@@ -11,71 +11,74 @@ import sys
 import getopt
 
 import grokcore.component as grok
-from zope.component import getUtility, queryUtility
 
-from kombu.connection import BrokerConnection
-from kombu.compat import Publisher as CarrotPublisher
+from zope.component import getUtility, queryUtility
 
 from affinitic.zamqp.interfaces import IPublisher, IBrokerConnection
 from affinitic.zamqp.transactionmanager import VTM
 
 
-class Publisher(grok.GlobalUtility, CarrotPublisher, VTM):
-    __doc__ = CarrotPublisher.__doc__
+class Publisher(grok.GlobalUtility, VTM):
+    """
+    Publisher utility
+
+    See `<#affinitic.zamqp.interfaces.IPublisher>`_ for more details.
+    """
     grok.baseclass()
     grok.implements(IPublisher)
 
     connection_id = None
 
-    def __init__(self, connection=None, exchange=None, routing_key=None,
-                 exchange_type=None, durable=None, auto_delete=None,
-                 channel=None, **kwargs):
-
+    def __init__(self):
         self._queueOfPendingMessage = None
 
-        if connection:
-            self._connection = connection
-        else:
-            self._connection =\
-                queryUtility(IBrokerConnection, name=self.connection_id)
+    # def __init__(self, connection=None, exchange=None, routing_key=None,
+    #              exchange_type=None, durable=None, auto_delete=None,
+    #              channel=None, **kwargs):
 
-        # Allow class variables to provide defaults
-        exchange = exchange or getattr(self, "exchange", None)
-        routing_key = routing_key or getattr(self, "routing_key", None)
-        exchange_type = exchange_type or getattr(self, "exchange_type", None)
-        durable = durable or getattr(self, "durable", None)
-        auto_delete = auto_delete or getattr(self, "auto_delete", None)
+    #     if connection:
+    #         self._connection = connection
+    #     else:
+    #         self._connection =\
+    #             queryUtility(IBrokerConnection, name=self.connection_id)
 
-        serializer = kwargs.get("serializer",
-                                getattr(self, "serializer", None))
-        auto_declare = kwargs.get("auto_declare",
-                                  getattr(self, "auto_declare", None))
-        kwargs.update({
-            "serializer": serializer,
-            "auto_declare": auto_declare
-            })
+    #     # Allow class variables to provide defaults
+    #     exchange = exchange or getattr(self, "exchange", None)
+    #     routing_key = routing_key or getattr(self, "routing_key", None)
+    #     exchange_type = exchange_type or getattr(self, "exchange_type", None)
+    #     durable = durable or getattr(self, "durable", None)
+    #     auto_delete = auto_delete or getattr(self, "auto_delete", None)
 
-        if self._connection:
-            super(Publisher, self).__init__(
-                self._connection, exchange, routing_key, exchange_type,
-                durable, auto_delete, channel, **kwargs)
-        else:
-            kwargs.update({
-                "exchange": exchange, "routing_key": routing_key,
-                "exchange_type": exchange_type, "durable": durable,
-                "auto_delete": auto_delete
-                })
-            self._lazy_init_kwargs = kwargs
+    #     serializer = kwargs.get("serializer",
+    #                             getattr(self, "serializer", None))
+    #     auto_declare = kwargs.get("auto_declare",
+    #                               getattr(self, "auto_declare", None))
+    #     kwargs.update({
+    #         "serializer": serializer,
+    #         "auto_declare": auto_declare
+    #         })
 
-    @property
-    def connection(self):
-        if self._connection is None:
-            # perform lazy init when connection is needed for the first time
-            self._connection =\
-                getUtility(IBrokerConnection, name=self.connection_id)
-            super(Publisher, self).__init__(
-                self._connection, **self._lazy_init_kwargs)
-        return self._connection
+    #     if self._connection:
+    #         super(Publisher, self).__init__(
+    #             self._connection, exchange, routing_key, exchange_type,
+    #             durable, auto_delete, channel, **kwargs)
+    #     else:
+    #         kwargs.update({
+    #             "exchange": exchange, "routing_key": routing_key,
+    #             "exchange_type": exchange_type, "durable": durable,
+    #             "auto_delete": auto_delete
+    #             })
+    #         self._lazy_init_kwargs = kwargs
+
+    # @property
+    # def connection(self):
+    #     if self._connection is None:
+    #         # perform lazy init when connection is needed for the first time
+    #         self._connection =\
+    #             getUtility(IBrokerConnection, name=self.connection_id)
+    #         super(Publisher, self).__init__(
+    #             self._connection, **self._lazy_init_kwargs)
+    #     return self._connection
 
     def send(self, message_data, routing_key=None, delivery_mode=None,
             mandatory=False, immediate=False, priority=0, content_type=None,
@@ -96,14 +99,15 @@ class Publisher(grok.GlobalUtility, CarrotPublisher, VTM):
                 message_data, routing_key, delivery_mode, mandatory,
                 immediate, priority, content_type, content_encoding,
                 serializer)
-    send.__doc__ = CarrotPublisher.send.__doc__
 
-    _sendToBroker = CarrotPublisher.send
+    def _sendToBroker(self, *args, **kwargs):
+        import pdb; pdb.set_trace()
 
     def _begin(self):
         self._queueOfPendingMessage = []
-        # establish a connection even if the message might not be send directly
-        self.connection
+
+        # # establish a connection even if the message might not be send directly
+        # self.connection
 
     def _abort(self):
         self._queueOfPendingMessage = None
@@ -147,7 +151,6 @@ def usage():
 
         -m message / --message=message
             Message
-
 """
 
 
@@ -161,13 +164,13 @@ def getCommandLineConfig():
         print str(err)
         usage()
         sys.exit(2)
-    hostname = None
+    host = None
     port = 5672
-    userId = None
+    username = None
     password = None
-    virtualHost = None
-    exchangeName = None
-    routingKey = None
+    virtual_host = None
+    exchange = None
+    routing_key = None
     message = None
     if len(opts) == 0:
         usage()
@@ -177,32 +180,90 @@ def getCommandLineConfig():
             usage()
             sys.exit()
         elif o in ("-o", "--hostname"):
-            hostname = value
+            host = value
         elif o in ("-t", "--port"):
-            port = value
+            port = int(value)
         elif o in ("-u", "--userid"):
-            userId = value
+            username = value
         elif o in ("-p", "--password"):
             password = value
         elif o in ("-v", "--virtual-host"):
-            virtualHost = value
+            virtual_host = value
         elif o in ("-e", "--exchange"):
-            exchangeName = value
+            exchange = value
         elif o in ("-r", "--routing-key"):
-            routingKey = value
+            routing_key = value
         elif o in ("-m", "--message"):
             message = value
-    return (hostname, port, userId, password, virtualHost, exchangeName, routingKey, message)
+    return (host, port, virtual_host, username, password,
+            exchange, routing_key, message)
+
+
+from pika import\
+    PlainCredentials, ConnectionParameters, SelectConnection,\
+    BasicProperties
 
 
 def main():
-    hostname, port, userId, password, virtualHost, exchangeName, routingKey, message = getCommandLineConfig()
-    conn = BrokerConnection(hostname=hostname, port=port,
-                            userid=userId, password=password, virtual_host=virtualHost)
-    publisher = CarrotPublisher(connection=conn, exchange=exchangeName, routing_key=routingKey)
-    publisher.send(message, serializer="pickle")
-    publisher.close()
-    conn.close()
+
+    class BasicPublish(object):
+        """See also: http://pika.github.com/examples.html"""
+
+        def __init__(self, host, port, virtual_host, username, password,
+                     exchange, routing_key, message):
+            self.channel = None
+            self.exchange = exchange
+            self.routing_key = routing_key
+            self.message = message
+
+            credentials = PlainCredentials(
+                username, password, erase_on_connect=False)
+            parameters = ConnectionParameters(
+                host, port, virtual_host, credentials=credentials)
+
+            self.connection = SelectConnection(
+                parameters=parameters, on_open_callback=self.on_connect)
+
+        def on_connect(self, connection):
+            self.connection.channel(self.on_channel_open)
+
+        def on_channel_open(self, channel):
+            self.channel = channel
+
+        ## Commented code below declares both a new exhange and a new queue and
+        ## binds them together:
+
+        #     self.channel.exchange_declare(exchange=self.exchange,
+        #                                   type="direct", durable=True,
+        #                                   auto_delete=False,
+        #                                   callback=self.on_exchange_declared)
+
+        # def on_exchange_declared(self, frame):
+        #     self.channel.queue_declare(queue=self.routing_key, durable=True,
+        #                                exclusive=False, auto_delete=False,
+        #                                callback=self.on_queue_declared)
+
+        # def on_queue_declared(self, frame):
+        #     self.channel.queue_bind(exchange=self.exchange,
+        #                             queue=self.routing_key,
+        #                             # routing_key=self.routing_key,
+        #                             callback=self.on_queue_bound)
+
+        # def on_queue_bound(self, frame):
+            properties = BasicProperties(content_type="text/plain",
+                                         delivery_mode=1)
+            self.channel.basic_publish(exchange=self.exchange,
+                                       routing_key=self.routing_key,
+                                       body=self.message,
+                                       properties=properties)
+            self.connection.close()
+
+    basic_publish = BasicPublish(*getCommandLineConfig())
+    try:
+        basic_publish.connection.ioloop.start()
+    except KeyboardInterrupt:
+        basic_publish.connection.close()
+        basic_publish.connection.ioloop.start()
 
 
 if __name__ == '__main__':
