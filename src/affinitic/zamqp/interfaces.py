@@ -41,6 +41,24 @@ class IBrokerConnectionFactory(IFactory):
         """
 
 
+class ISerializer(Interface):
+    """
+    A named serializer serializes and de-serializes message bodies.
+
+    The convention is to register all serializers twice: once by their nick
+    name and once by their content-type. E.g. PickleSerializer is registered as
+    both as "pickle" and as "application/x-python-serialize".
+    """
+
+    content_type = Attribute("Content-type for serialized content")
+
+    def serialize(body):
+        """Return serialized body"""
+
+    def deserialize(body):
+        """return de-serialized body"""
+
+
 class IConsumer(Interface):
     """
     A Consumer receive messages sent to a queue via an exchange

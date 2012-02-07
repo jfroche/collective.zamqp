@@ -18,7 +18,7 @@ from affinitic.zamqp.interfaces import\
 
 class Consumer(grok.GlobalUtility):
     """
-    Consumer utility
+    Consumer utility base class
 
     See `<#affinitic.zamqp.interfaces.IConsumer>`_ for more details.
     """
@@ -32,24 +32,40 @@ class Consumer(grok.GlobalUtility):
     exchange_type = None
     routing_key = None
 
-    auto_delete = None
+    durable = True
+    exclusive = True
+    auto_delete = True
+
+    auto_declare = True
+    queue_arguments = {}
 
     messageInterface = None
 
-    # @property
-    # def connection(self):
-    #     if self._connection is None:
-    #         # perform lazy init when connection is needed for the first time
-    #         self._connection =\
-    #             getUtility(IBrokerConnection, name=self.connection_id)
-    #         super(Consumer, self).__init__(
-    #             self._connection, **self._lazy_init_kwargs)
-    #     return self._connection
+    def __init__(self, queue=None, exchange=None, exchange_type=None,
+                 routing_key=None, durable=None, exclusive=None,
+                 auto_delete=None, auto_declare=None, queue_arguments=None):
+
+        self.exchange = exchange or self.exchange
+        self.routing_key = routing_key or self.routing_key
+        self.exchange_type = exchange_type or self.exchange_type
+
+        if durable is not None:
+            self.durable = durable
+
+        if exclusive is not None:
+            self.exclusive = exclusive
+
+        if auto_delete is not None:
+            self.auto_delete = auto_delete
+
+        if queue_arguments is not None:
+            self.queue_arguments = queue_arguments
 
     def receive(self, message_data, message):
         message = self._markMessage(message)
         message = self._adaptMessage(message)
         message = self._markMessage(message)
+        import pdb; pdb.set_trace()
         if not self.callbacks:
             raise NotImplementedError("No consumer callbacks registered")
         for callback in self.callbacks:

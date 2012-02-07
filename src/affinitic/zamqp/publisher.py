@@ -12,15 +12,16 @@ import getopt
 
 import grokcore.component as grok
 
-from zope.component import getUtility, queryUtility
+from zope.component import getUtility
 
-from affinitic.zamqp.interfaces import IPublisher, IBrokerConnection
+from affinitic.zamqp.interfaces import\
+    IPublisher, IBrokerConnection, ISerializer
 from affinitic.zamqp.transactionmanager import VTM
 
 
 class Publisher(grok.GlobalUtility, VTM):
     """
-    Publisher utility
+    Publisher utility base class
 
     See `<#affinitic.zamqp.interfaces.IPublisher>`_ for more details.
     """
@@ -29,99 +30,105 @@ class Publisher(grok.GlobalUtility, VTM):
 
     connection_id = None
 
-    def __init__(self):
-        self._queueOfPendingMessage = None
+    exchange = None
+    routing_key = None
+    durable = None
 
-    # def __init__(self, connection=None, exchange=None, routing_key=None,
-    #              exchange_type=None, durable=None, auto_delete=None,
-    #              channel=None, **kwargs):
+    reply_to = None
+    serializer = None
 
-    #     if connection:
-    #         self._connection = connection
-    #     else:
-    #         self._connection =\
-    #             queryUtility(IBrokerConnection, name=self.connection_id)
+    def __init__(self, exchange=None, routing_key=None, exchange_type=None,
+                 durable=None, reply_to=None, serializer=None):
 
-    #     # Allow class variables to provide defaults
-    #     exchange = exchange or getattr(self, "exchange", None)
-    #     routing_key = routing_key or getattr(self, "routing_key", None)
-    #     exchange_type = exchange_type or getattr(self, "exchange_type", None)
-    #     durable = durable or getattr(self, "durable", None)
-    #     auto_delete = auto_delete or getattr(self, "auto_delete", None)
+        self._connection = None
+        self._queue_of_pending_messages = None
 
-    #     serializer = kwargs.get("serializer",
-    #                             getattr(self, "serializer", None))
-    #     auto_declare = kwargs.get("auto_declare",
-    #                               getattr(self, "auto_declare", None))
-    #     kwargs.update({
-    #         "serializer": serializer,
-    #         "auto_declare": auto_declare
-    #         })
+        # Allow class variables to provide defaults
+        self.exchange = exchange or self.exchange
+        self.routing_key = routing_key or self.routing_key
 
-    #     if self._connection:
-    #         super(Publisher, self).__init__(
-    #             self._connection, exchange, routing_key, exchange_type,
-    #             durable, auto_delete, channel, **kwargs)
-    #     else:
-    #         kwargs.update({
-    #             "exchange": exchange, "routing_key": routing_key,
-    #             "exchange_type": exchange_type, "durable": durable,
-    #             "auto_delete": auto_delete
-    #             })
-    #         self._lazy_init_kwargs = kwargs
+        if durable is not None:
+            self.durable = durable
 
-    # @property
-    # def connection(self):
-    #     if self._connection is None:
-    #         # perform lazy init when connection is needed for the first time
-    #         self._connection =\
-    #             getUtility(IBrokerConnection, name=self.connection_id)
-    #         super(Publisher, self).__init__(
-    #             self._connection, **self._lazy_init_kwargs)
-    #     return self._connection
+        self.reply_to = reply_to or self.reply_to
+        self.serializer = serializer or self.serializer
 
-    def send(self, message_data, routing_key=None, delivery_mode=None,
-            mandatory=False, immediate=False, priority=0, content_type=None,
-            content_encoding=None, serializer=None):
+    @property
+    def connection(self):
+        if self._connection is None:
+            self._connection =\
+                getUtility(IBrokerConnection, name=self.connection_id)
+        return self._connection
+
+    def send(self, message, exchange=None, routing_key=None,
+             mandatory=False, immediate=False,
+             content_type=None, content_encoding=None,
+             headers=None, delivery_mode=None, priority=None,
+             correlation_id=None, reply_to=None, expiration=None,
+             message_id=None, timestamp=None, type=None, user_id=None,
+             app_id=None, cluster_id=None, serializer=None):
+
+        exchange = exchange or self.exchange
+        routing_key = routing_key or self.routing_key
+        reply_to = reply_to or self.reply_to
+        serializer = serializer or self.serializer
+
+        if serializer and not content_type:
+            util = getUtility(ISerializer, name=serializer)
+            content_type = util.content_type
+            message = util.serialize(message)
+        elif not content_type:
+            content_type = "text/plain"
+
+        if delivery_mode is None:
+            if not self.durable:
+                delivery_mode = 1  # message is transient
+            else:
+                delivery_mode = 2  # message is persistent
+
+        properties = BasicProperties(
+            content_type=content_type, content_encoding=content_encoding,
+            headers=headers, delivery_mode=delivery_mode, priority=priority,
+            correlation_id=correlation_id, reply_to=reply_to,
+            expiration=expiration, message_id=message_id, timestamp=timestamp,
+            type=type, user_id=user_id, app_id=app_id, cluster_id=cluster_id)
+
+        msg = {
+            "exchange": exchange,
+            "routing_key": routing_key,
+            "body": message,
+            "properties": properties,
+        }
+
         if self.registered():
-            msgInfo = {'data': message_data,
-                       'info': {'routing_key': routing_key,
-                                'delivery_mode': delivery_mode,
-                                'mandatory': mandatory,
-                                'immediate': immediate,
-                                'priority': priority,
-                                'content_type': content_type,
-                                'content_encoding': content_encoding,
-                                'serializer': serializer}}
-            self._queueOfPendingMessage.append(msgInfo)
+            self._queue_of_pending_messages.append(msg)
         else:
-            self._sendToBroker(
-                message_data, routing_key, delivery_mode, mandatory,
-                immediate, priority, content_type, content_encoding,
-                serializer)
+            self._basic_publish(**msg)
 
-    def _sendToBroker(self, *args, **kwargs):
-        import pdb; pdb.set_trace()
+    def _basic_publish(self, **kwargs):
+        self.connection.channel.basic_publish(**kwargs)
+        if self.connection.tx_select:  # is channel transactional
+            self.connection.channel.tx_commit()
 
     def _begin(self):
-        self._queueOfPendingMessage = []
-
-        # # establish a connection even if the message might not be send directly
-        # self.connection
+        self._queue_of_pending_messages = []
+        # establish a connection even if the message might not be send, because
+        # the transaction must fail when the connection cannot be established
+        assert self.connection.channel is not None,\
+            "Connection to AMQP broker has failed."
 
     def _abort(self):
-        self._queueOfPendingMessage = None
+        self._queue_of_pending_messages = None
 
     def _finish(self):
-        for msgInfo in self._queueOfPendingMessage:
-            message_data = msgInfo['data']
-            sendInfo = msgInfo['info']
-            self._sendToBroker(message_data, **sendInfo)
+        for msg in self._queue_of_pending_messages:
+            self._basic_publish(**msg)
 
 
 def usage():
     print """
-    Usage: publishmsg [-h | -o hostname -t port -u (userid) -p (password) -v (virtual_host) -e (exchange) -r (routing_key) -m (message)]
+    Usage: publishmsg [-h | -o hostname -t port -u (userid) -p (password)
+           -v (virtual_host) -e (exchange) -r (routing_key) -m (message)]
 
     Options:
 
@@ -158,8 +165,8 @@ def getCommandLineConfig():
     opts = []
     try:
         opts, args = getopt.getopt(sys.argv[1:], "ho:t:u:p:v:e:r:m:",
-            ["help", "hostname=", "port=", "userid=", "password=", "virtual-host=",
-             "exchange=", "routing-key=", "message="])
+            ["help", "hostname=", "port=", "userid=", "password=",
+             "virtual-host=", "exchange=", "routing-key=", "message="])
     except getopt.GetoptError, err:
         print str(err)
         usage()
