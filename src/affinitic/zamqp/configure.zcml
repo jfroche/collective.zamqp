@@ -13,14 +13,14 @@
     <configure zcml:condition="installed zope.processlifetime">
       <subscriber
           for="zope.processlifetime.IDatabaseOpenedWithRoot"
-          handler=".service.bootStrapSubscriber"/>
+          handler=".service.start"/>
     </configure>
 
     <configure zcml:condition="not-installed zope.processlifetime">
       <configure zcml:condition="installed zope.app.appsetup">
         <subscriber
             for="zope.app.appsetup.interfaces.IDatabaseOpenedWithRootEvent"
-            handler=".service.bootStrapSubscriber"/>
+            handler=".service.start"/>
       </configure>
     </configure>
 

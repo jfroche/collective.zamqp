@@ -95,6 +95,10 @@ class IMessage(Interface):
     """
     """
 
+class IMessageFactory(Interface):
+    """
+    """
+
 
 class IPublisher(Interface):
     """

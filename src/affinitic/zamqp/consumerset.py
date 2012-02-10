@@ -22,18 +22,20 @@ from affinitic.zamqp.interfaces import\
 class ConsumerSet(object):
     implements(IConsumerSet)
 
-    def __init__(self, connection):
+    def __init__(self, connection_id):
+        self.connection = createObject('AMQPBrokerConnection', connection_id)
+        self.consumers = []
+        for name, consumerUtility in getUtilitiesFor(IConsumer):
+            if consumerUtility.connection_id == connection_id and \
+                not IErrorConsumer.providedBy(consumerUtility):
+                self.consumers.append(consumerUtility)
+        self.connection.connect(self.on_connect)
+
+    def on_connect(self, connection):
         import pdb; pdb.set_trace()
-        # for name, consumerUtility in getUtilitiesFor(IConsumer):
 
-        #     if consumerUtility.connection_id == connection_id and \
-        #        not IErrorConsumer.providedBy(consumerUtility):
-        #         consumer_set.add_consumer(consumerUtility)
-        # return consumer_set
-
-    def add_consumer(self, consumer):
-        assert consumer.connection is not None  # wake up a lazy consumer
-        super(ConsumerSet, self).add_consumer(consumer)
+    def register_callback(self, callback):
+        import pdb; pdb.set_trace()
 
     def _adaptMessage(self, message):
         alsoProvides(message, IMessage)
@@ -67,8 +69,7 @@ class ConsumerSetFactory(object):
         return implementedBy(ConsumerSet)
 
     def __call__(self, connection_id):
-        connection = createObject('AMQPBrokerConnection', connection_id)
-        return ConsumerSet(connection)
+        return ConsumerSet(connection_id)
 
 grok.global_utility(ConsumerSetFactory,
                     provides=IFactory, name='ConsumerSet')

@@ -8,46 +8,33 @@ Copyright by Affinitic sprl
 $Id$
 """
 import threading
+
 from App.config import getConfiguration
 from affinitic.zamqp.processor import MultiProcessor
+
 import logging
 logger = logging.getLogger('affinitic.zamqp')
 
 
-def getAutostartServiceNames():
-    """get a list of services to start"""
-    config = getattr(getConfiguration(), 'product_config', None)
-    if config is not None:
-        task_config = config.get('affinitic.zamqp', None)
-        if task_config:
-            return task_config
-    return {}
+def start(event):
+    """Start the queue processing services based on the settings in
+    zope.conf on 'IDatabaseOpenedWithRoot' event"""
 
+    # Read product configuration
+    config = getattr(getConfiguration(), 'product_config', {})
+    product_config = config.get('affinitic.zamqp', {})
 
-class ConsumerService(object):
+    # Start configured services
+    for service_id, opts in product_config.items():
+        site_id, connection_id = opts.split('@')
+        connection_id = connection_id.split(' ')[0]  # clean deprecated opts.
 
-    def startProcessing(self, serviceId, db, siteName, connectionId, threads):
-        """See interfaces.ITaskService"""
-        # Start the thread running the processor inside.
-        processor = MultiProcessor(db, siteName, connectionId, maxThreads=threads)
-        thread = threading.Thread(target=processor, name=serviceId)
+        # Start the thread running the processor inside
+        processor = MultiProcessor(event.database, site_id, connection_id)
+
+        thread = threading.Thread(target=processor, name=service_id)
         thread.setDaemon(True)
         thread.running = True
         thread.start()
 
-
-def bootStrapSubscriber(event):
-    """Start the queue processing services based on the
-       settings in zope.conf"""
-    serviceItems = getAutostartServiceNames()
-    db = event.database
-    for serviceId, serviceName in serviceItems.items():
-        siteName, serviceName = serviceName.split('@')
-        threads = 1
-        nameAndThreads = serviceName.split(' ')
-        serviceName = nameAndThreads[0]
-        if len(nameAndThreads) > 1:
-            threads = int(nameAndThreads[1])
-        consumer = ConsumerService()
-        logger.info('Starting consumer %s' % serviceId)
-        consumer.startProcessing(serviceId, db, siteName, serviceName, threads)
+        logger.info('Starting consumer %s', service_id)

@@ -18,6 +18,12 @@ from affinitic.zamqp.interfaces import\
     IPublisher, IBrokerConnection, ISerializer
 from affinitic.zamqp.transactionmanager import VTM
 
+from pika import BasicProperties
+from pika.exceptions import ChannelClosed
+
+import logging
+logger = logging.getLogger('affinitic.zamqp')
+
 
 class Publisher(grok.GlobalUtility, VTM):
     """
@@ -32,20 +38,24 @@ class Publisher(grok.GlobalUtility, VTM):
 
     exchange = None
     routing_key = None
-    durable = None
+    durable = True
 
     reply_to = None
     serializer = None
 
-    def __init__(self, exchange=None, routing_key=None, exchange_type=None,
+    def __init__(self, connection_id=None,
+                 exchange=None, routing_key=None, exchange_type=None,
                  durable=None, reply_to=None, serializer=None):
 
         self._connection = None
         self._queue_of_pending_messages = None
+        self._queue_of_failed_messages = None  # used with tx_select
 
         # Allow class variables to provide defaults
+        self.connection_id = connection_id or self.connection_id
         self.exchange = exchange or self.exchange
-        self.routing_key = routing_key or self.routing_key
+        self.routing_key = routing_key or self.routing_key\
+            or getattr(self, "grokcore.component.directive.name", None)
 
         if durable is not None:
             self.durable = durable
@@ -106,23 +116,49 @@ class Publisher(grok.GlobalUtility, VTM):
             self._basic_publish(**msg)
 
     def _basic_publish(self, **kwargs):
-        self.connection.channel.basic_publish(**kwargs)
-        if self.connection.tx_select:  # is channel transactional
-            self.connection.channel.tx_commit()
+        try:
+            self.connection.channel.basic_publish(**kwargs)
+        except ChannelClosed:
+            # Publish fails silently unless self.connection.tx_select
+            pass
+
+        if self.connection.tx_select:  # support transactional channel
+            tx_commit = False
+            if self.connection.is_open:
+                try:
+                    self.connection.channel.tx_commit()
+                    tx_commit = True
+                except KeyError:
+                    pass
+
+            if tx_commit:
+                # commit succcess
+                if self._queue_of_failed_messages is not None:
+                    self._queue_of_pending_messages.extend(
+                        self._queue_of_failed_messages)
+                    logger.info("Recovered %s unsent message(s).",
+                                len(self._queue_of_failed_messages))
+                    self._queue_of_failed_messages = None
+            else:
+                # commit failed
+                if self._queue_of_failed_messages is None:
+                    self._queue_of_failed_messages = []
+                self._queue_of_failed_messages.append(kwargs)
+                logger.warning("TX_COMMIT failed (%s) for %s",
+                               len(self._queue_of_failed_messages), kwargs)
 
     def _begin(self):
         self._queue_of_pending_messages = []
         # establish a connection even if the message might not be send, because
         # the transaction must fail when the connection cannot be established
-        assert self.connection.channel is not None,\
-            "Connection to AMQP broker has failed."
+        assert self.connection.channel
 
     def _abort(self):
         self._queue_of_pending_messages = None
 
     def _finish(self):
-        for msg in self._queue_of_pending_messages:
-            self._basic_publish(**msg)
+        while self._queue_of_pending_messages:
+            self._basic_publish(**self._queue_of_pending_messages.pop())
 
 
 def usage():
@@ -206,9 +242,7 @@ def getCommandLineConfig():
             exchange, routing_key, message)
 
 
-from pika import\
-    PlainCredentials, ConnectionParameters, SelectConnection,\
-    BasicProperties
+from pika import PlainCredentials, ConnectionParameters, SelectConnection
 
 
 def main():
