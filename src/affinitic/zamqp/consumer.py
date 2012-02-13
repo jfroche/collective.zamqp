@@ -3,9 +3,9 @@
 affinitic.zamqp
 
 Licensed under the GPL license, see LICENCE.txt for more details.
-Copyright by Affinitic sprl
 
-$Id$
+Copyright 2010-2011 by Affinitic sprl
+Copyright 2012 by University of Jyväskylä
 """
 import grokcore.component as grok
 
@@ -90,7 +90,7 @@ class Consumer(grok.GlobalUtility):
     def declare(self):
         logger.info("Declaring exchange, declaring queue and binding "
                     "them for a consumer...")
-        # declare exchange
+        # Next: declare exchange
         self.channel.exchange_declare(exchange=self.exchange,
                                       type=self.exchange_type,
                                       durable=self.exchange_durable,
@@ -99,7 +99,7 @@ class Consumer(grok.GlobalUtility):
 
     def on_exchange_declared(self, frame):
         logger.info("Declared exchange '%s'", self.exchange)
-        # declare queue
+        # Next: declare queue
         self.channel.queue_declare(queue=self.queue, durable=self.durable,
                                    exclusive=self.exclusive,
                                    auto_delete=self.auto_delete,
@@ -108,7 +108,7 @@ class Consumer(grok.GlobalUtility):
 
     def on_queue_declared(self, frame):
         logger.info("Declared queue '%s'", self.queue)
-        # bind queue
+        # Next: bind queue
         self.channel.queue_bind(exchange=self.exchange, queue=self.queue,
                                 routing_key=self.routing_key or self.queue,
                                 callback=self.on_queue_bound)

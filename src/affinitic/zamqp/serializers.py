@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 """
 Named serializer utilities
+
+Copyright 2012 by University of Jyväskylä
 """
 
 from grokcore import component as grok

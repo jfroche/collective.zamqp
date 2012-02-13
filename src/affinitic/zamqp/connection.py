@@ -3,9 +3,9 @@
 affinitic.zamqp
 
 Licensed under the GPL license, see LICENCE.txt for more details.
-Copyright by Affinitic sprl
 
-$Id$
+Copyright 2010-2011 by Affinitic sprl
+Copyright 2012 by University of Jyväskylä
 """
 
 # XXX: Monkey patch bug https://github.com/pika/pika/issues/113 in 0.9.5
@@ -44,10 +44,10 @@ class BlockingConnection(BlockingConnectionBase):
         self._on_connected()
         self._timeouts = dict()
 
-        # XXX: Original version loops until self.is_open without reconnecting,
-        # that is forever if the broker was down when the loop started. This
-        # may not be safe either, but just letting this go, seems to allow
-        # reconnections later on.
+        # XXX: The original version loops forever (until self.is_open) without
+        # trying to reconnect if the broker was down when the loop started.
+        # Limiting the loop and just letting the connection process to continue
+        # seems to allow reconnections later on.
         trials = 3
         while not self.is_open and trials > 0:
             self._flush_outbound()
@@ -97,16 +97,19 @@ class BrokerConnection(grok.GlobalUtility):
     userid = None
     password = None
 
+    heartbeat = False
     tx_select = None
 
     def __init__(self, hostname=None, port=None, virtual_host=None,
-                 userid=None, password=None, tx_select=None):
+                 userid=None, password=None, heartbeat=False, tx_select=None,
+                 on_channel_open=None):
 
         self._sync_connection = None
         self._sync_channel = None
 
         self._async_connection = None
-        self._async_connecting = False
+        self._async_channel = None
+        self._async_channel_open_callback = None
 
         # Allow class variables to provide defaults
         self.hostname = hostname or self.hostname
@@ -116,11 +119,32 @@ class BrokerConnection(grok.GlobalUtility):
         self.userid = userid or self.userid
         self.password = password or self.password
 
+        if heartbeat is not None:
+            self.heartbeat = heartbeat
+
         if tx_select is not None:
             self.tx_select = tx_select
 
+        if on_channel_open:  # prepare async connection
+            self._async_channel_open_callback = on_channel_open
+            credentials = PlainCredentials(
+                self.userid, self.password, erase_on_connect=False)
+            parameters = ConnectionParameters(
+                self.hostname, self.port, self.virtual_host,
+                credentials=credentials, heartbeat=self.heartbeat)
+            self._async_connection = SelectConnection(
+                parameters=parameters,
+                on_open_callback=self.on_async_connect)
+
+            # FIXME: SimpleReconnection strategy doesn't work on pika 0.9.5
+            # strategy = SimpleReconnectionStrategy()
+            # self._async_connection = SelectConnection(
+            #     parameters=parameters,
+            #     on_open_callback=self.on_async_connect,
+            #     reconnection_strategy=strategy)
+
     @property
-    def connection(self):
+    def sync_connection(self):
         """Returns a synchronous connection. Creates a new connection
         or reconnects closed connection when required."""
         if not self._sync_connection:
@@ -128,7 +152,7 @@ class BrokerConnection(grok.GlobalUtility):
                 self.userid, self.password, erase_on_connect=False)
             parameters = ConnectionParameters(
                 self.hostname, self.port, self.virtual_host,
-                credentials=credentials)
+                credentials=credentials, heartbeat=self.heartbeat)
             strategy = SyncReconnectionStrategy()
             self._sync_connection = BlockingConnection(
                 parameters=parameters, reconnection_strategy=strategy)
@@ -143,54 +167,39 @@ class BrokerConnection(grok.GlobalUtility):
         return self._sync_connection
 
     @property
-    def is_open(self):
+    def sync_is_open(self):
         """Returns the state of known state of the synchronous connection
         without trying to re-establish the connection"""
-        return self._sync_connection.is_open
+        return self._sync_connection and self._sync_connection.is_open
 
     @property
-    def channel(self):
+    def sync_channel(self):
         """Returns a synchronous channel. Creates a new connection
         or reconnects closed connection when required."""
-        assert self.connection  # connect/reconnect when required
+        assert self.sync_connection  # connect/reconnect when required
         if not self._sync_channel:
-            self._sync_channel = self.connection.channel()
+            self._sync_channel = self.sync_connection.channel()
             if self.tx_select:  # should channel be transactional
                 self._sync_channel.tx_select()
         return self._sync_channel
 
-    def async_connect(self, on_channel_open):
-        if not self._async_connection or not self._async_connecting:
-            self._async_connecting = True
-            self._async_channel_open_callback = on_channel_open
-
-            credentials = PlainCredentials(
-                self.userid, self.password, erase_on_connect=False)
-            parameters = ConnectionParameters(
-                self.hostname, self.port, self.virtual_host,
-                credentials=credentials)
-            self._async_connection = SelectConnection(
-                parameters=parameters,
-                on_open_callback=self.on_async_connect)
-
-            # FIXME: SimpleReconnection strategy doesn't work on pika 0.9.5
-            # strategy = SimpleReconnectionStrategy()
-            # self._async_connection = SelectConnection(
-            #     parameters=parameters,
-            #     on_open_callback=self.on_async_connect,
-            #     reconnection_strategy=strategy)
-
-    def on_async_connect(self, connection):
-        self._async_connecting = False
-        self._async_connection = connection
-        self._async_connection.channel(self._async_channel_open_callback)
-
-    def on_async_channel_open(self, channel):
-        self._async_channel_open_callback(channel)
-
     @property
     def async_ioloop(self):
         return self._async_connection.ioloop
+
+    def on_async_connect(self, connection):
+        self._async_connection = connection
+        self._async_connection.channel(self.on_async_channel_open)
+
+    def on_async_channel_open(self, channel):
+        self._async_channel = channel
+        if self.tx_select:  # should channel be transactional
+            channel.tx_select(self.on_async_channel_tx_select)
+        else:
+            self._async_channel_open_callback(self._async_channel)
+
+    def on_async_channel_tx_select(self, frame):
+        self._async_channel_open_callback(self._async_channel)
 
 
 class BrokerConnectionFactory(object):
@@ -202,8 +211,10 @@ class BrokerConnectionFactory(object):
     def getInterfaces(self):
         return implementedBy(BrokerConnection)
 
-    def __call__(self, connection_id):
-        return getUtility(IBrokerConnection, name=connection_id).__class__()
+    def __call__(self, connection_id, on_channel_open=None):
+        klass = getUtility(IBrokerConnection, name=connection_id).__class__
+        # if on_channel_open is defined, prepares also asynchronous connection
+        return klass(on_channel_open=on_channel_open)
 
 grok.global_utility(BrokerConnectionFactory,
                     provides=IFactory, name='AMQPBrokerConnection')

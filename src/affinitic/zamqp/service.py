@@ -3,9 +3,9 @@
 affinitic.zamqp
 
 Licensed under the GPL license, see LICENCE.txt for more details.
-Copyright by Affinitic sprl
 
-$Id$
+Copyright 2010-2011 by Affinitic sprl
+Copyright 2012 by University of Jyväskylä
 """
 import threading
 

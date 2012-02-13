@@ -3,9 +3,9 @@
 affinitic.zamqp
 
 Licensed under the GPL license, see LICENCE.txt for more details.
-Copyright by Affinitic sprl
 
-$Id$
+Copyright 2010-2011 by Affinitic sprl
+Copyright 2012 by University of Jyväskylä
 """
 import grokcore.component as grok
 
@@ -22,12 +22,12 @@ class Message(object, VTM):
     """
     implements(IMessage)
 
+    state = None
+
     channel = None
     method_frame = None
     header_frame = None
     body = None
-
-    acknowledged = False
 
     def __init__(self, channel, method_frame, header_frame, body):
         self.channel = channel
@@ -37,30 +37,38 @@ class Message(object, VTM):
         # FIXME: de-serialize body
         self.body = body
 
+        self.state = "RECEIVED"
+        self._should_ack = False
+
     def ack(self):
         """
         Mark the message as acknowledge.
 
-        If the message is registered in a transaction, we defer transmition of acknowledgement.
+        If the message is registered in a transaction, we defer transmition of
+        acknowledgement.
 
-        If the message is not registered in a transaction, we transmit acknowledgement.
+        If the message is not registered in a transaction, we transmit
+        acknowledgement.
         """
-        self.acknowledged = True
+        self._should_ack = True
         if not self.registered():
-            self._ackMessage()
+            self._ack()
 
-    def _ackMessage(self):
+    def _ack(self):
         """
         Transmit acknowledgement to the message broker
         """
-        # self.channel.ack()
+        self.state = "ACK"
+        self.channel.basic_ack(
+            delivery_tag=self.method_frame.delivery_tag)
+        print "ACK for", self.method_frame.delivery_tag
 
     def _finish(self):
-        if self.acknowledged:
-            self._ackMessage()
+        if self._should_ack:
+            self._ack()
 
     def _abort(self):
-        self.acknowledged = False
+        self._should_ack = False
 
     def __getattr__(self, name):
         if hasattr(self.__class__, name):
@@ -69,8 +77,7 @@ class Message(object, VTM):
             return getattr(self.body, name)
 
     def sortKey(self, *ignored):
-        "Always be the last one !"
-        return '~zamqp 9'
+        return '~zamqp 9'  # Always be the last one!
 
 
 class MessageFactory(object):
@@ -85,5 +92,4 @@ class MessageFactory(object):
     def __call__(self, channel, method_frame, header_frame, body):
         return Message(channel, method_frame, header_frame, body)
 
-grok.global_utility(MessageFactory,
-                    provides=IFactory, name='AMQPMessage')
+grok.global_utility(MessageFactory, provides=IFactory, name='AMQPMessage')

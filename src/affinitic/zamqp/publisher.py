@@ -3,9 +3,9 @@
 affinitic.zamqp
 
 Licensed under the GPL license, see LICENCE.txt for more details.
-Copyright by Affinitic sprl
 
-$Id$
+Copyright 2010-2011 by Affinitic sprl
+Copyright 2012 by University of Jyväskylä
 """
 import sys
 import getopt
@@ -117,16 +117,16 @@ class Publisher(grok.GlobalUtility, VTM):
 
     def _basic_publish(self, **kwargs):
         try:
-            self.connection.channel.basic_publish(**kwargs)
+            self.connection.sync_channel.basic_publish(**kwargs)
         except ChannelClosed:
             # Publish fails silently unless self.connection.tx_select
             pass
 
         if self.connection.tx_select:  # support transactional channel
             tx_commit = False
-            if self.connection.is_open:
+            if self.connection.sync_is_open:
                 try:
-                    self.connection.channel.tx_commit()
+                    self.connection.sync_channel.tx_commit()
                     tx_commit = True
                 except KeyError:
                     pass
@@ -151,7 +151,7 @@ class Publisher(grok.GlobalUtility, VTM):
         self._queue_of_pending_messages = []
         # establish a connection even if the message might not be send, because
         # the transaction must fail when the connection cannot be established
-        assert self.connection.channel
+        assert self.connection.sync_channel
 
     def _abort(self):
         self._queue_of_pending_messages = None
