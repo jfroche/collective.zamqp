@@ -99,7 +99,7 @@ class MultiProcessor(object):
         self.consumers = []
 
     def __call__(self):
-        # 1) create connection
+        # 1) create connection (and keep trying until successful)
         reconnection_delay = 1.0
         while True:
             try:
@@ -110,11 +110,11 @@ class MultiProcessor(object):
                 logger.error(e)
             finally:
                 if not self.connection:
+                    if reconnection_delay <= 60:
+                        reconnection_delay *= (random.random() * 0.5) + 1
                     logger.info("Trying reconnection in %s seconds",
                                 reconnection_delay)
                     time.sleep(reconnection_delay)
-                    if reconnection_delay <= 60:
-                        reconnection_delay *= (random.random() * 0.5) + 1
                 else:
                     break
 
