@@ -4,15 +4,15 @@ affinitic.zamqp
 
 Licensed under the GPL license, see LICENCE.txt for more details.
 
-Copyright 2010-2011 by Affinitic sprl
-Copyright 2012 by University of Jyväskylä
+Copyright by Affinitic sprl
+Copyright by University of Jyväskylä
 """
 import grokcore.component as grok
 
 from zope.interface import implements, implementedBy
-from zope.component import IFactory
+from zope.component import IFactory, queryUtility
 
-from affinitic.zamqp.interfaces import IMessage, IMessageFactory
+from affinitic.zamqp.interfaces import IMessage, IMessageFactory, ISerializer
 from affinitic.zamqp.transactionmanager import VTM
 
 
@@ -34,8 +34,12 @@ class Message(object, VTM):
         self.method_frame = method_frame
         self.header_frame = header_frame
 
-        # FIXME: de-serialize body
-        self.body = body
+        # de-serializer body when its content_type is supported
+        util = queryUtility(ISerializer, name=header_frame.content_type)
+        if util:
+            self.body = util.serialize(body)
+        else:
+            self.body = body
 
         self.state = "RECEIVED"
         self._should_ack = False
@@ -58,17 +62,16 @@ class Message(object, VTM):
         """
         Transmit acknowledgement to the message broker
         """
-        self.state = "ACK"
         self.channel.basic_ack(
             delivery_tag=self.method_frame.delivery_tag)
-        print "ACK for", self.method_frame.delivery_tag
+        self.state = "ACK"
+
+    def _abort(self):
+        self._should_ack = False
 
     def _finish(self):
         if self._should_ack:
             self._ack()
-
-    def _abort(self):
-        self._should_ack = False
 
     def __getattr__(self, name):
         if hasattr(self.__class__, name):
@@ -77,7 +80,7 @@ class Message(object, VTM):
             return getattr(self.body, name)
 
     def sortKey(self, *ignored):
-        return '~zamqp 9'  # Always be the last one!
+        return '~zamqp 9'  # always be the last one!
 
 
 class MessageFactory(object):

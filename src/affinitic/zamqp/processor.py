@@ -4,8 +4,8 @@ affinitic.zamqp
 
 Licensed under the GPL license, see LICENCE.txt for more details.
 
-Copyright 2010-2011 by Affinitic sprl
-Copyright 2012 by University of Jyväskylä
+Copyright by Affinitic sprl
+Copyright by University of Jyväskylä
 """
 import sys
 import transaction
@@ -97,6 +97,10 @@ class MultiProcessor(object):
     def __call__(self):
         logger.info('Starting Pika IOLoop.')
         self.connection.async_ioloop.start()
+        # try:
+        #     self.connection.async_ioloop.start()
+        # except Exception as e:
+        #     logger.error(e)
         logger.error('Pika IOLoop ended.')
 
     def on_channel_open(self, channel):
@@ -109,20 +113,30 @@ class MultiProcessor(object):
         logger.info('Received message %s on exchange %s',
                     message_id, exchange)
 
+        self.db.sync()  # update the view on the database
         site = getattr(self.db.root()['Application'], self.site_id)
         with active_site(site):
             sm = getSiteManager()
-            with transactional_message(message):
-                results = sm.subscribers((message,), IArrivedMessage)
+            try:
+                with transactional_message(message):
+                    results = sm.subscribers((message,), IArrivedMessage)
+            except Exception as e:
+                results = e
+                # All exceptions are already logged by with's __exit__.
+                # Also, any transactions have been aborted.
 
-        if self.connection.tx_select:
-            print 'TX_COMMIT'
+        if self.connection.tx_select and message.state == "ACK":
             try:
                 message.channel.tx_commit()
             except KeyError:
-                logger.warning(('TX_COMMIT failed after handling of msg %s on '
+                logger.warning(('Tx.Commit failed after handling of msg %s on '
                                 'exchange %s. Message may be handled twice'),
                                message_id, exchange)
+        elif self.connection.tx_select:
+            try:
+                message.channel.tx_rollback()
+            except KeyError:
+                pass  # Tx.Rollback is allowed to fail silently
 
         if not isinstance(results, Exception) and not results:
             # XXX: nobody handled the message: error queue/dead letter queue?

@@ -2,7 +2,7 @@
 """
 Named serializer utilities
 
-Copyright 2012 by University of Jyväskylä
+Copyright by University of Jyväskylä
 """
 
 from grokcore import component as grok
@@ -10,6 +10,24 @@ from grokcore import component as grok
 from affinitic.zamqp.interfaces import ISerializer
 
 import cPickle
+
+
+class PlainTextSerializer(grok.GlobalUtility):
+    grok.provides(ISerializer)
+    grok.name("text")
+
+    content_type = "text/plain"
+
+    def serialize(self, body):
+        return body
+
+    def deserialize(self, body):
+        return body
+
+
+class PlainTextSerializerByMimeType(PlainTextSerializer):
+    grok.provides(ISerializer)
+    grok.name(PlainTextSerializer.content_type)
 
 
 class PickleSerializer(grok.GlobalUtility):

@@ -4,8 +4,8 @@ affinitic.zamqp
 
 Licensed under the GPL license, see LICENCE.txt for more details.
 
-Copyright 2010-2011 by Affinitic sprl
-Copyright 2012 by University of Jyväskylä
+Copyright by Affinitic sprl
+Copyright by University of Jyväskylä
 """
 
 # XXX: Monkey patch bug https://github.com/pika/pika/issues/113 in 0.9.5
@@ -30,6 +30,8 @@ from affinitic.zamqp.interfaces import\
     IBrokerConnection, IBrokerConnectionFactory
 
 import logging
+logger = logging.getLogger('pika')
+logger.setLevel(logging.DEBUG)
 logger = logging.getLogger('affinitic.zamqp')
 
 
@@ -97,11 +99,11 @@ class BrokerConnection(grok.GlobalUtility):
     userid = None
     password = None
 
-    heartbeat = False
+    heartbeat = 0
     tx_select = None
 
     def __init__(self, hostname=None, port=None, virtual_host=None,
-                 userid=None, password=None, heartbeat=False, tx_select=None,
+                 userid=None, password=None, heartbeat=None, tx_select=None,
                  on_channel_open=None):
 
         self._sync_connection = None
@@ -131,17 +133,16 @@ class BrokerConnection(grok.GlobalUtility):
                 self.userid, self.password, erase_on_connect=False)
             parameters = ConnectionParameters(
                 self.hostname, self.port, self.virtual_host,
-                credentials=credentials, heartbeat=self.heartbeat)
+                credentials=credentials,
+                heartbeat=bool(self.heartbeat))
+            # XXX: Without this, pika forces interval to 1 second
+            if parameters.heartbeat:
+                parameters.heartbeat = int(self.heartbeat)
+            strategy = SimpleReconnectionStrategy()
             self._async_connection = SelectConnection(
                 parameters=parameters,
-                on_open_callback=self.on_async_connect)
-
-            # FIXME: SimpleReconnection strategy doesn't work on pika 0.9.5
-            # strategy = SimpleReconnectionStrategy()
-            # self._async_connection = SelectConnection(
-            #     parameters=parameters,
-            #     on_open_callback=self.on_async_connect,
-            #     reconnection_strategy=strategy)
+                on_open_callback=self.on_async_connect,
+                reconnection_strategy=strategy)
 
     @property
     def sync_connection(self):
@@ -152,10 +153,15 @@ class BrokerConnection(grok.GlobalUtility):
                 self.userid, self.password, erase_on_connect=False)
             parameters = ConnectionParameters(
                 self.hostname, self.port, self.virtual_host,
-                credentials=credentials, heartbeat=self.heartbeat)
+                credentials=credentials,
+                heartbeat=bool(self.heartbeat))
+            # XXX: Without this, pika forces interval to 1 second
+            if parameters.heartbeat:
+                parameters.heartbeat = int(self.heartbeat)
             strategy = SyncReconnectionStrategy()
             self._sync_connection = BlockingConnection(
-                parameters=parameters, reconnection_strategy=strategy)
+                parameters=parameters,
+                reconnection_strategy=strategy)
 
         # Reconnect when required
         if getattr(self._sync_connection, '_reconnect_request', False):
@@ -188,7 +194,6 @@ class BrokerConnection(grok.GlobalUtility):
         return self._async_connection.ioloop
 
     def on_async_connect(self, connection):
-        self._async_connection = connection
         self._async_connection.channel(self.on_async_channel_open)
 
     def on_async_channel_open(self, channel):

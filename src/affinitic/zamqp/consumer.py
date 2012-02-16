@@ -4,8 +4,8 @@ affinitic.zamqp
 
 Licensed under the GPL license, see LICENCE.txt for more details.
 
-Copyright 2010-2011 by Affinitic sprl
-Copyright 2012 by University of Jyväskylä
+Copyright by Affinitic sprl
+Copyright by University of Jyväskylä
 """
 import grokcore.component as grok
 
@@ -61,6 +61,9 @@ class Consumer(grok.GlobalUtility):
 
         if exclusive is not None:
             self.exclusive = exclusive
+
+        if auto_declare is not None:
+            self.auto_declare = auto_declare
 
         if auto_delete is not None:
             self.auto_delete = auto_delete

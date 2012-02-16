@@ -4,8 +4,8 @@ affinitic.zamqp
 
 Licensed under the GPL license, see LICENCE.txt for more details.
 
-Copyright 2010-2011 by Affinitic sprl
-Copyright 2012 by University of Jyväskylä
+Copyright by Affinitic sprl
+Copyright by University of Jyväskylä
 """
 import sys
 import getopt
@@ -41,7 +41,7 @@ class Publisher(grok.GlobalUtility, VTM):
     durable = True
 
     reply_to = None
-    serializer = None
+    serializer = "text/plain"
 
     def __init__(self, connection_id=None,
                  exchange=None, routing_key=None, exchange_type=None,
