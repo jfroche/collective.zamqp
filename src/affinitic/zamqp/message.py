@@ -22,12 +22,13 @@ class Message(object, VTM):
     """
     implements(IMessage)
 
-    state = None
-
     channel = None
     method_frame = None
     header_frame = None
     body = None
+
+    state = None
+    acknowledged = None
 
     def __init__(self, channel, method_frame, header_frame, body):
         self.channel = channel
@@ -41,8 +42,8 @@ class Message(object, VTM):
         else:
             self.body = body
 
-        self.state = "RECEIVED"
-        self._should_ack = False
+        self.state = 'RECEIVED'
+        self.acknowledged = False
 
     def ack(self):
         """
@@ -52,26 +53,23 @@ class Message(object, VTM):
         acknowledgement.
 
         If the message is not registered in a transaction, we transmit
-        acknowledgement.
+        acknowledgement immediately.
         """
-        self._should_ack = True
-        if not self.registered():
-            self._ack()
-
-    def _ack(self):
-        """
-        Transmit acknowledgement to the message broker
-        """
-        self.channel.basic_ack(
-            delivery_tag=self.method_frame.delivery_tag)
-        self.state = "ACK"
+        if not self.acknowledged and not self.registered():
+            self.channel.basic_ack(
+                delivery_tag=self.method_frame.delivery_tag)
+            self.state = 'ACK'
+        self.acknowledged = True
 
     def _abort(self):
-        self._should_ack = False
+        self.state = 'RECEIVED'
+        self.acknowledged = False
 
     def _finish(self):
-        if self._should_ack:
-            self._ack()
+        if self.acknowledged and not self.state == 'ACK':
+            self.channel.basic_ack(
+                delivery_tag=self.method_frame.delivery_tag)
+            self.state = 'ACK'
 
     def __getattr__(self, name):
         if hasattr(self.__class__, name):

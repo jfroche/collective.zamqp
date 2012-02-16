@@ -41,7 +41,7 @@ class Publisher(grok.GlobalUtility, VTM):
     durable = True
 
     reply_to = None
-    serializer = "text/plain"
+    serializer = 'text/plain'
 
     def __init__(self, connection_id=None,
                  exchange=None, routing_key=None, exchange_type=None,
@@ -55,7 +55,7 @@ class Publisher(grok.GlobalUtility, VTM):
         self.connection_id = connection_id or self.connection_id
         self.exchange = exchange or self.exchange
         self.routing_key = routing_key or self.routing_key\
-            or getattr(self, "grokcore.component.directive.name", None)
+            or getattr(self, 'grokcore.component.directive.name', None)
 
         if durable is not None:
             self.durable = durable
@@ -88,7 +88,7 @@ class Publisher(grok.GlobalUtility, VTM):
             content_type = util.content_type
             message = util.serialize(message)
         elif not content_type:
-            content_type = "text/plain"
+            content_type = 'text/plain'
 
         if delivery_mode is None:
             if not self.durable:
@@ -104,10 +104,10 @@ class Publisher(grok.GlobalUtility, VTM):
             type=type, user_id=user_id, app_id=app_id, cluster_id=cluster_id)
 
         msg = {
-            "exchange": exchange,
-            "routing_key": routing_key,
-            "body": message,
-            "properties": properties,
+            'exchange': exchange,
+            'routing_key': routing_key,
+            'body': message,
+            'properties': properties,
         }
 
         if self.registered():
@@ -118,7 +118,10 @@ class Publisher(grok.GlobalUtility, VTM):
     def _basic_publish(self, **kwargs):
         try:
             self.connection.sync_channel.basic_publish(**kwargs)
-        except ChannelClosed:
+        except AttributeError:  # sync_channel was not available
+            # Publish fails silently unless self.connection.tx_select
+            pass
+        except ChannelClosed:  # sync_channel was unexpectedly closed
             # Publish fails silently unless self.connection.tx_select
             pass
 
@@ -136,22 +139,19 @@ class Publisher(grok.GlobalUtility, VTM):
                 if self._queue_of_failed_messages is not None:
                     self._queue_of_pending_messages.extend(
                         self._queue_of_failed_messages)
-                    logger.info("Recovered %s unsent message(s).",
+                    logger.info('Recovered %s unsent message(s).',
                                 len(self._queue_of_failed_messages))
                     self._queue_of_failed_messages = None
-            else:
-                # commit failed
+            elif self.durable:
+                # commit failed for a durable message
                 if self._queue_of_failed_messages is None:
                     self._queue_of_failed_messages = []
                 self._queue_of_failed_messages.append(kwargs)
-                logger.warning("TX_COMMIT failed (%s) for %s",
+                logger.warning('Tx.Commit failed (%s) for %s',
                                len(self._queue_of_failed_messages), kwargs)
 
     def _begin(self):
         self._queue_of_pending_messages = []
-        # establish a connection even if the message might not be send, because
-        # the transaction must fail when the connection cannot be established
-        assert self.connection.sync_channel
 
     def _abort(self):
         self._queue_of_pending_messages = None
@@ -200,9 +200,9 @@ def usage():
 def getCommandLineConfig():
     opts = []
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "ho:t:u:p:v:e:r:m:",
-            ["help", "hostname=", "port=", "userid=", "password=",
-             "virtual-host=", "exchange=", "routing-key=", "message="])
+        opts, args = getopt.getopt(sys.argv[1:], 'ho:t:u:p:v:e:r:m:',
+            ['help', 'hostname=', 'port=', 'userid=', 'password=',
+             'virtual-host=', 'exchange=', 'routing-key=', 'message='])
     except getopt.GetoptError, err:
         print str(err)
         usage()
@@ -219,24 +219,24 @@ def getCommandLineConfig():
         usage()
         sys.exit(2)
     for o, value in opts:
-        if o in ("-h", "--help"):
+        if o in ('-h', '--help'):
             usage()
             sys.exit()
-        elif o in ("-o", "--hostname"):
+        elif o in ('-o', '--hostname'):
             host = value
-        elif o in ("-t", "--port"):
+        elif o in ('-t', '--port'):
             port = int(value)
-        elif o in ("-u", "--userid"):
+        elif o in ('-u', '--userid'):
             username = value
-        elif o in ("-p", "--password"):
+        elif o in ('-p', '--password'):
             password = value
-        elif o in ("-v", "--virtual-host"):
+        elif o in ('-v', '--virtual-host'):
             virtual_host = value
-        elif o in ("-e", "--exchange"):
+        elif o in ('-e', '--exchange'):
             exchange = value
-        elif o in ("-r", "--routing-key"):
+        elif o in ('-r', '--routing-key'):
             routing_key = value
-        elif o in ("-m", "--message"):
+        elif o in ('-m', '--message'):
             message = value
     return (host, port, virtual_host, username, password,
             exchange, routing_key, message)
@@ -275,7 +275,7 @@ def main():
         ## binds them together:
 
         #     self.channel.exchange_declare(exchange=self.exchange,
-        #                                   type="direct", durable=True,
+        #                                   type='direct', durable=True,
         #                                   auto_delete=False,
         #                                   callback=self.on_exchange_declared)
 
@@ -291,7 +291,7 @@ def main():
         #                             callback=self.on_queue_bound)
 
         # def on_queue_bound(self, frame):
-            properties = BasicProperties(content_type="text/plain",
+            properties = BasicProperties(content_type='text/plain',
                                          delivery_mode=1)
             self.channel.basic_publish(exchange=self.exchange,
                                        routing_key=self.routing_key,

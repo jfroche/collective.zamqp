@@ -19,6 +19,8 @@ from zope.component import getUtility
 from zope.component.interfaces import IFactory
 from zope.interface import implementedBy
 
+from socket import error as SocketError
+
 from pika import PlainCredentials, ConnectionParameters, SelectConnection
 from pika.reconnection_strategies import SimpleReconnectionStrategy
 
@@ -58,7 +60,7 @@ class BlockingConnection(BlockingConnectionBase):
         return self
 
 
-class SyncReconnectionStrategy(SimpleReconnectionStrategy):
+class BlockingReconnectionStrategy(SimpleReconnectionStrategy):
     """
     Pika reconnection strategy for blocking connection.
 
@@ -80,7 +82,21 @@ class SyncReconnectionStrategy(SimpleReconnectionStrategy):
                         self.attempts_since_last_success)
 
             conn.outbound_buffer.flush()  # flush buffer; start from scratch
-            conn._reconnect()  # try to reconnect
+            try:
+                conn._reconnect()  # try to reconnect
+            except SocketError as e:
+                logger.error(e)
+
+
+class SelectReconnectionStrategy(SimpleReconnectionStrategy):
+    """
+    Pika reconnection strategy for async select connection.
+    """
+
+    def on_connection_closed(self, conn):
+        import pdb; pdb.set_trace()
+        super(SelectReconnectionStrategy, self).on_connection_closed(conn)
+        import pdb; pdb.set_trace()
 
 
 class BrokerConnection(grok.GlobalUtility):
@@ -138,7 +154,7 @@ class BrokerConnection(grok.GlobalUtility):
             # XXX: Without this, pika forces interval to 1 second
             if parameters.heartbeat:
                 parameters.heartbeat = int(self.heartbeat)
-            strategy = SimpleReconnectionStrategy()
+            strategy = SelectReconnectionStrategy()
             self._async_connection = SelectConnection(
                 parameters=parameters,
                 on_open_callback=self.on_async_connect,
@@ -158,10 +174,13 @@ class BrokerConnection(grok.GlobalUtility):
             # XXX: Without this, pika forces interval to 1 second
             if parameters.heartbeat:
                 parameters.heartbeat = int(self.heartbeat)
-            strategy = SyncReconnectionStrategy()
-            self._sync_connection = BlockingConnection(
-                parameters=parameters,
-                reconnection_strategy=strategy)
+            strategy = BlockingReconnectionStrategy()
+            try:
+                self._sync_connection = BlockingConnection(
+                    parameters=parameters,
+                    reconnection_strategy=strategy)
+            except SocketError as e:
+                logger.error(e)
 
         # Reconnect when required
         if getattr(self._sync_connection, '_reconnect_request', False):
@@ -182,12 +201,13 @@ class BrokerConnection(grok.GlobalUtility):
     def sync_channel(self):
         """Returns a synchronous channel. Creates a new connection
         or reconnects closed connection when required."""
-        assert self.sync_connection  # connect/reconnect when required
-        if not self._sync_channel:
-            self._sync_channel = self.sync_connection.channel()
-            if self.tx_select:  # should channel be transactional
-                self._sync_channel.tx_select()
-        return self._sync_channel
+        if self.sync_connection:
+            if not self._sync_channel:
+                self._sync_channel = self.sync_connection.channel()
+                if self.tx_select:  # should channel be transactional
+                    self._sync_channel.tx_select()
+            return self._sync_channel
+        return None
 
     @property
     def async_ioloop(self):

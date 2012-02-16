@@ -37,4 +37,4 @@ def start(event):
         thread.running = True
         thread.start()
 
-        logger.info('Starting consumer %s', service_id)
+        logger.info('Starting AMQP-processor %s', service_id)
