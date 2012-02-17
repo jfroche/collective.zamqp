@@ -139,7 +139,7 @@ class Publisher(grok.GlobalUtility, VTM):
                 if self._queue_of_failed_messages is not None:
                     self._queue_of_pending_messages.extend(
                         self._queue_of_failed_messages)
-                    logger.info('Recovered %s unsent message(s).',
+                    logger.info('Recovered and sent %s unsent message(s).',
                                 len(self._queue_of_failed_messages))
                     self._queue_of_failed_messages = None
             elif self.durable:

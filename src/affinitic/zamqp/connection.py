@@ -32,8 +32,6 @@ from affinitic.zamqp.interfaces import\
     IBrokerConnection, IBrokerConnectionFactory
 
 import logging
-logger = logging.getLogger('pika')
-logger.setLevel(logging.DEBUG)
 logger = logging.getLogger('affinitic.zamqp')
 
 
@@ -88,17 +86,6 @@ class BlockingReconnectionStrategy(SimpleReconnectionStrategy):
                 logger.error(e)
 
 
-class SelectReconnectionStrategy(SimpleReconnectionStrategy):
-    """
-    Pika reconnection strategy for async select connection.
-    """
-
-    def on_connection_closed(self, conn):
-        import pdb; pdb.set_trace()
-        super(SelectReconnectionStrategy, self).on_connection_closed(conn)
-        import pdb; pdb.set_trace()
-
-
 class BrokerConnection(grok.GlobalUtility):
     """
     Connection utility base class
@@ -151,14 +138,19 @@ class BrokerConnection(grok.GlobalUtility):
                 self.hostname, self.port, self.virtual_host,
                 credentials=credentials,
                 heartbeat=bool(self.heartbeat))
-            # XXX: Without this, pika forces interval to 1 second
+            # FIXME: Without this, pika 0.9.5 forces interval to 1 second
             if parameters.heartbeat:
                 parameters.heartbeat = int(self.heartbeat)
-            strategy = SelectReconnectionStrategy()
             self._async_connection = SelectConnection(
                 parameters=parameters,
-                on_open_callback=self.on_async_connect,
-                reconnection_strategy=strategy)
+                on_open_callback=self.on_async_connect)
+
+            # FIXME: SimpleReconnectionStrategy doesn't work in pika 0.9.5
+            # strategy = SimpleReconnectionStrategy()
+            # self._async_connection = SelectConnection(
+            #     parameters=parameters,
+            #     on_open_callback=self.on_async_connect,
+            #     reconnection_strategy=strategy)
 
     @property
     def sync_connection(self):
@@ -213,7 +205,11 @@ class BrokerConnection(grok.GlobalUtility):
     def async_ioloop(self):
         return self._async_connection.ioloop
 
+    def async_add_timeout(self, callback, timeout):
+        return self._async_connection.add_timeout(callback, timeout)
+
     def on_async_connect(self, connection):
+        print "XXXXXXXXXXXXXXXXXXXXXXXXXX ON ASYN CCONNECT!"
         self._async_connection.channel(self.on_async_channel_open)
 
     def on_async_channel_open(self, channel):
