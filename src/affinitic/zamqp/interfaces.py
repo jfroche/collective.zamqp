@@ -85,12 +85,6 @@ class IArrivedMessage(IObjectEvent):
     """
 
 
-class IMessageWrapper(Interface):
-    """
-    A Message wrapper
-    """
-
-
 class IMessage(Interface):
     """
     """
@@ -108,24 +102,6 @@ class IPublisher(Interface):
     connection_id = Attribute('The BrokerConnection id where the queue is/will be registered')
 
 
-class IConsumerSet(Interface):
-    """
-    A Set of consumers connected to the same broker connection
-    """
-
-
-class IConsumerSetFactory(IFactory):
-
-    def __call__(connectionId):
-        """
-        Create a ConsumerSet and link the corresponding consumers
-        based on the ``connectionId``
-
-        :param connectionId: the id of the broker connection where the consumers are connected to
-        :rtype: ConsumerSet
-        """
-
-
 class IErrorHandler(Interface):
     """
     Error handler for a specific exchange
@@ -135,15 +111,3 @@ class IErrorHandler(Interface):
         """
         Do something with the error and the traceback that we got while consuming message
         """
-
-
-class IErrorFixerHandler(Interface):
-    """
-    Error Handler that can fix a problem
-    """
-
-
-class IErrorConsumer(Interface):
-    """
-    Marker interface for a Consumer that handle error messages
-    """

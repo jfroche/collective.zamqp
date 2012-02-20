@@ -28,7 +28,7 @@ except ImportError:
 from socket import error as SocketError
 
 from affinitic.zamqp.interfaces import\
-    IConsumer, IErrorConsumer, IArrivedMessage, IErrorHandler
+    IConsumer, IArrivedMessage, IErrorHandler
 
 import logging
 logger = logging.getLogger('affinitic.zamqp')
@@ -101,8 +101,7 @@ class ConsumingService(object):
 
         self.consumers = []
         for name, consumerUtility in getUtilitiesFor(IConsumer):
-            if consumerUtility.connection_id == self.connection_id and \
-                not IErrorConsumer.providedBy(consumerUtility):
+            if consumerUtility.connection_id == self.connection_id:
                 self.consumers.append(consumerUtility)
 
         self.connection = None
