@@ -4,13 +4,14 @@ affinitic.zamqp
 
 Licensed under the GPL license, see LICENCE.txt for more details.
 Copyright by Affinitic sprl
-
-$Id$
 """
 import os
 import glob
-from zope.testing import doctest
+
 from unittest import TestSuite
+
+from zope.testing import doctest
+
 import zope.configuration.xmlconfig
 
 OPTIONFLAGS = (doctest.ELLIPSIS |
@@ -31,9 +32,8 @@ def setUp(suite):
 
 def test_suite():
     filenames = list_doctests()
-    return TestSuite([doctest.DocFileSuite(
-                            os.path.basename(filename),
-               setUp=setUp,
-               optionflags=OPTIONFLAGS,
-               package='affinitic.zamqp.tests')
-              for filename in filenames])
+    return TestSuite([doctest.DocFileSuite(os.path.basename(filename),
+                                           setUp=setUp,
+                                           optionflags=OPTIONFLAGS,
+                                           package='affinitic.zamqp.tests')
+                      for filename in filenames])

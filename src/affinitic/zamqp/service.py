@@ -59,7 +59,8 @@ class transactional_message:
 
     def __enter__(self):
         transaction.begin()
-        self.message._register()
+        if hasattr(self.message, "_register"):
+            self.message._register()
         return self.message
 
     def __exit__(self, type, value, traceback):
@@ -126,6 +127,10 @@ class ConsumingService(object):
                             self.reconnection_delay)
                 time.sleep(self.reconnection_delay)
 
+    @property
+    def site(self):
+        return getattr(self.db.root()['Application'], self.site_id)
+
     def on_channel_open(self, channel):
         self.reconnection_delay = 1.0
         for consumer in self.consumers:
@@ -140,8 +145,7 @@ class ConsumingService(object):
                     delivery_tag, exchange, routing_key)
 
         self.db.sync()  # update the view on the database
-        site = getattr(self.db.root()['Application'], self.site_id)
-        with active_site(site):
+        with active_site(self.site):
             sm = getSiteManager()
             try:
                 with transactional_message(message):
@@ -169,6 +173,7 @@ class ConsumingService(object):
 
         # 'Re-schedule' failed messages to be tried again later on
         if isinstance(results, Exception) and message.state != 'ACK':
+            logger.error(results)
             logger.warning(('Failed to handle message %s sent to exchange %s '
                             'with routing key %s; TODO: schedule re-run!'),
                            delivery_tag, exchange, routing_key)
@@ -181,16 +186,19 @@ class ConsumingService(object):
                            delivery_tag, exchange, routing_key)
 
 
-def launch(event):
-    """Start the queue processing services based on the settings in
-    zope.conf on 'IDatabaseOpenedWithRoot' event"""
-
+def get_configured_services():
     # Read product configuration
     config = getattr(getConfiguration(), 'product_config', {})
     product_config = config.get('affinitic.zamqp', {})
+    return product_config.items()
+
+
+def on_database_opened_with_root(event):
+    """Start the queue processing services based on the settings in
+    zope.conf on 'IDatabaseOpenedWithRoot' event"""
 
     # Start configured services
-    for service_id, opts in product_config.items():
+    for service_id, opts in get_configured_services():
         site_id, connection_id = opts.split('@')
         connection_id = connection_id.split(' ')[0]  # clean deprecated opts.
 

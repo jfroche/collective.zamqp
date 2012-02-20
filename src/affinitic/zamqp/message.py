@@ -28,7 +28,8 @@ class Message(object, VTM):
     body = None
 
     state = None
-    acknowledged = None
+
+    _ack = None
 
     def __init__(self, channel, method_frame, header_frame, body):
         self.channel = channel
@@ -43,7 +44,8 @@ class Message(object, VTM):
             self.body = body
 
         self.state = 'RECEIVED'
-        self.acknowledged = False
+
+        self._ack = False
 
     def ack(self):
         """
@@ -55,18 +57,18 @@ class Message(object, VTM):
         If the message is not registered in a transaction, we transmit
         acknowledgement immediately.
         """
-        if not self.acknowledged and not self.registered():
+        if not self._ack and not self.registered():
             self.channel.basic_ack(
                 delivery_tag=self.method_frame.delivery_tag)
             self.state = 'ACK'
-        self.acknowledged = True
+        self._ack = True
 
     def _abort(self):
         self.state = 'RECEIVED'
-        self.acknowledged = False
+        self._ack = False
 
     def _finish(self):
-        if self.acknowledged and not self.state == 'ACK':
+        if self._ack and not self.state == 'ACK':
             self.channel.basic_ack(
                 delivery_tag=self.method_frame.delivery_tag)
             self.state = 'ACK'
