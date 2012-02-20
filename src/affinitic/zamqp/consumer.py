@@ -122,7 +122,8 @@ class Consumer(grok.GlobalUtility):
         self.on_ready_to_consume()
 
     def on_ready_to_consume(self):
-        self.channel.basic_consume(self.on_message_received)
+        self.channel.basic_consume(self.on_message_received,
+                                   queue=self.queue)
 
     def on_message_received(self, channel, method_frame, header_frame, body):
         message = createObject(
