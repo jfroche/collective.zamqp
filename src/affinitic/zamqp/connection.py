@@ -111,10 +111,12 @@ class BrokerConnection(grok.GlobalUtility):
 
         self._sync_connection = None
         self._sync_channel = None
+        self._sync_queue_of_failed_messages = None  # used with tx_select
 
         self._async_connection = None
         self._async_channel = None
         self._async_channel_open_callback = None
+
 
         # Allow class variables to provide defaults
         self.hostname = hostname or self.hostname
@@ -209,7 +211,6 @@ class BrokerConnection(grok.GlobalUtility):
         return self._async_connection.add_timeout(callback, timeout)
 
     def on_async_connect(self, connection):
-        print "XXXXXXXXXXXXXXXXXXXXXXXXXX ON ASYN CCONNECT!"
         self._async_connection.channel(self.on_async_channel_open)
 
     def on_async_channel_open(self, channel):

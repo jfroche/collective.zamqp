@@ -48,8 +48,6 @@ class Publisher(grok.GlobalUtility, VTM):
                  durable=None, reply_to=None, serializer=None):
 
         self._connection = None
-        self._queue_of_pending_messages = None
-        self._queue_of_failed_messages = None  # used with tx_select
 
         # Allow class variables to provide defaults
         self.connection_id = connection_id or self.connection_id
@@ -136,19 +134,19 @@ class Publisher(grok.GlobalUtility, VTM):
 
             if tx_commit:
                 # commit succcess
-                if self._queue_of_failed_messages is not None:
+                if self.connection._sync_queue_of_failed_messages is not None:
                     self._queue_of_pending_messages.extend(
-                        self._queue_of_failed_messages)
+                        self.connection._sync_queue_of_failed_messages)
                     logger.info('Recovered and sent %s unsent message(s).',
-                                len(self._queue_of_failed_messages))
-                    self._queue_of_failed_messages = None
+                        len(self.connection._sync_queue_of_failed_messages))
+                    self.connection._sync_queue_of_failed_messages = None
             elif self.durable:
                 # commit failed for a durable message
-                if self._queue_of_failed_messages is None:
-                    self._queue_of_failed_messages = []
-                self._queue_of_failed_messages.append(kwargs)
+                if self.connection._sync_queue_of_failed_messages is None:
+                    self.connection._sync_queue_of_failed_messages = []
+                self.connection._sync_queue_of_failed_messages.append(kwargs)
                 logger.warning('Tx.Commit failed (%s) for %s',
-                               len(self._queue_of_failed_messages), kwargs)
+                   len(self.connection._sync_queue_of_failed_messages), kwargs)
 
     def _begin(self):
         self._queue_of_pending_messages = []
