@@ -16,8 +16,6 @@ class IBrokerConnection(Interface):
     AMQP Broker connection to an AMQP server via a specific virtual host
     """
 
-    id = Attribute('The connection id')
-
     hostname = Attribute('The hostname where the broker is located')
 
     port = Attribute('The port where the broker is running (default: 5672)')
