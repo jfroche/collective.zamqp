@@ -87,7 +87,6 @@ Fake a message and its properties::
     ...         self.method_frame.exchange = "SuperExchange"
     ...         self.method_frame.routing_key = "X"
     ...         self.method_frame.delivery_tag = 1
-    ...         self.header_frame = DummyAMQPProperties()
     ...         self.state = "RECEIVED"
     ...     def ack(self):
     ...         self.state = 'ACK'
