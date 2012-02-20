@@ -22,30 +22,29 @@ class Message(object, VTM):
     """
     implements(IMessage)
 
-    channel = None
-    method_frame = None
-    header_frame = None
     body = None
+    header_frame = None
+    method_frame = None
+    channel = None
 
     state = None
+    acknowledged = None
 
-    _ack = None
-
-    def __init__(self, channel, method_frame, header_frame, body):
-        self.channel = channel
-        self.method_frame = method_frame
-        self.header_frame = header_frame
-
+    def __init__(self, body=None, header_frame=None,
+                 method_frame=None, channel=None):
         # de-serializer body when its content_type is supported
-        util = queryUtility(ISerializer, name=header_frame.content_type)
+        content_type = getattr(header_frame, "content_type", None)
+        util = queryUtility(ISerializer, name=content_type)
         if util:
             self.body = util.serialize(body)
         else:
             self.body = body
 
+        self.header_frame = header_frame
+        self.method_frame = method_frame
+        self.channel = channel
         self.state = 'RECEIVED'
-
-        self._ack = False
+        self.acknowledged = False
 
     def ack(self):
         """
@@ -57,20 +56,22 @@ class Message(object, VTM):
         If the message is not registered in a transaction, we transmit
         acknowledgement immediately.
         """
-        if not self._ack and not self.registered():
-            self.channel.basic_ack(
-                delivery_tag=self.method_frame.delivery_tag)
+        if not self.acknowledged and not self.registered():
+            if self.channel:
+                self.channel.basic_ack(
+                    delivery_tag=self.method_frame.delivery_tag)
             self.state = 'ACK'
-        self._ack = True
+        self.acknowledged = True
 
     def _abort(self):
         self.state = 'RECEIVED'
-        self._ack = False
+        self.acknowledged = False
 
     def _finish(self):
-        if self._ack and not self.state == 'ACK':
-            self.channel.basic_ack(
-                delivery_tag=self.method_frame.delivery_tag)
+        if self.acknowledged and not self.state == 'ACK':
+            if self.channel:
+                self.channel.basic_ack(
+                    delivery_tag=self.method_frame.delivery_tag)
             self.state = 'ACK'
 
     def __getattr__(self, name):
@@ -92,7 +93,9 @@ class MessageFactory(object):
     def getInterfaces(self):
         return implementedBy(Message)
 
-    def __call__(self, channel, method_frame, header_frame, body):
-        return Message(channel, method_frame, header_frame, body)
+    def __call__(self, body=None, header_frame=None,
+                 method_frame=None, channel=None):
+        return Message(body=body, header_frame=header_frame,
+                       method_frame=method_frame, channel=channel)
 
 grok.global_utility(MessageFactory, provides=IFactory, name='AMQPMessage')

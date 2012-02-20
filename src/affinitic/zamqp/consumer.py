@@ -126,8 +126,11 @@ class Consumer(grok.GlobalUtility):
                                    queue=self.queue)
 
     def on_message_received(self, channel, method_frame, header_frame, body):
-        message = createObject(
-            'AMQPMessage', channel, method_frame, header_frame, body)
+        message = createObject('AMQPMessage',
+                               body=body,
+                               header_frame=header_frame,
+                               method_frame=method_frame,
+                               channel=channel)
         if self.messageInterface:
             alsoProvides(message, self.messageInterface)
         self._message_received_callback(message)
