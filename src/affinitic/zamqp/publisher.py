@@ -48,6 +48,7 @@ class Publisher(grok.GlobalUtility, VTM):
                  durable=None, reply_to=None, serializer=None):
 
         self._connection = None
+        self._queue_of_pending_messages = None
 
         # Allow class variables to provide defaults
         self.connection_id = connection_id or self.connection_id
@@ -109,7 +110,7 @@ class Publisher(grok.GlobalUtility, VTM):
         }
 
         if self.registered():
-            self._queue_of_pending_messages.append(msg)
+            self._queue_of_pending_messages.insert(0, msg)
         else:
             self._basic_publish(**msg)
 
@@ -144,7 +145,8 @@ class Publisher(grok.GlobalUtility, VTM):
                 # commit failed for a durable message
                 if self.connection._sync_queue_of_failed_messages is None:
                     self.connection._sync_queue_of_failed_messages = []
-                self.connection._sync_queue_of_failed_messages.append(kwargs)
+                self.connection.\
+                    _sync_queue_of_failed_messages.insert(0, kwargs)
                 logger.warning('Tx.Commit failed (%s) for %s',
                    len(self.connection._sync_queue_of_failed_messages), kwargs)
 
