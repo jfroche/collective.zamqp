@@ -66,6 +66,7 @@ class Consumer(grok.GlobalUtility):
         # Allow class variables to provide defaults
         self.connection_id = connection_id or self.connection_id
         self.exchange = exchange or self.exchange
+        self.queue = queue or self.queue
         self.routing_key = routing_key or self.routing_key
         self.exchange_type = exchange_type or self.exchange_type
 
@@ -93,6 +94,9 @@ class Consumer(grok.GlobalUtility):
             self.exchange_auto_delete = exchange_auto_delete
         elif self.exchange_auto_delete is None:
             self.exchange_auto_delete = self.auto_delete
+
+        if getattr(self, "messageInterface", None):
+            self.marker = self.messageInterface
 
     def consume(self, channel, tx_select, on_message_received):
         self._message_received_callback = on_message_received
