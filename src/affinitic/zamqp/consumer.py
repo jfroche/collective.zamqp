@@ -23,8 +23,7 @@ from zope.event import notify
 
 from Products.CMFCore.utils import getToolByName
 
-from affinitic.zamqp.interfaces import\
-    IConsumer, IMessageArrivedEvent, IErrorHandler
+from affinitic.zamqp.interfaces import IConsumer, IErrorHandler
 
 from Products.Five.browser import BrowserView
 
@@ -210,6 +209,6 @@ class ConsumingView(BrowserView):
                             "exchange '%s' with routing key '%s'"),
                            delivery_tag, exchange, routing_key)
         else:
-            logger.info(("Committing transaction for message '%s' "
-                         u"(status = '%s')"),
+            logger.info(("Letting Zope to commit database transaction for "
+                         u"message '%s' (status = '%s')"),
                         delivery_tag, message.state)
