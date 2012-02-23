@@ -7,12 +7,26 @@ Licensed under the GPL license, see LICENCE.txt for more details.
 Copyright by Affinitic sprl
 Copyright by University of Jyväskylä
 """
+import sys
+
 import grokcore.component as grok
 
-from zope.interface import alsoProvides
-from zope.component import createObject
+from AccessControl.SecurityManagement import setSecurityManager
+from AccessControl.SecurityManagement import newSecurityManager
+from AccessControl.SecurityManagement import getSecurityManager
 
-from affinitic.zamqp.interfaces import IConsumer
+from ZODB.POSException import ConflictError
+
+from zope.interface import alsoProvides
+from zope.component import createObject, queryUtility
+from zope.event import notify
+
+from Products.CMFCore.utils import getToolByName
+
+from affinitic.zamqp.interfaces import\
+    IConsumer, IMessageArrivedEvent, IErrorHandler
+
+from Products.Five.browser import BrowserView
 
 import logging
 logger = logging.getLogger('affinitic.zamqp')
@@ -42,7 +56,7 @@ class Consumer(grok.GlobalUtility):
     auto_declare = True
     arguments = {}
 
-    messageInterface = None
+    marker = None
 
     def __init__(self, connection_id=None,
                  queue=None, exchange=None, exchange_type=None,
@@ -81,8 +95,9 @@ class Consumer(grok.GlobalUtility):
         elif self.exchange_auto_delete is None:
             self.exchange_auto_delete = self.auto_delete
 
-    def consume(self, channel, on_message_received):
+    def consume(self, channel, tx_select, on_message_received):
         self._message_received_callback = on_message_received
+        self._tx_select = tx_select
 
         self.channel = channel
         if self.auto_declare:
@@ -91,8 +106,6 @@ class Consumer(grok.GlobalUtility):
             self.on_ready_to_consume()
 
     def declare(self):
-        logger.info("Declaring exchange, declaring queue and binding "
-                    "them for a consumer...")
         # Next: declare exchange
         self.channel.exchange_declare(exchange=self.exchange,
                                       type=self.exchange_type,
@@ -122,15 +135,81 @@ class Consumer(grok.GlobalUtility):
         self.on_ready_to_consume()
 
     def on_ready_to_consume(self):
-        self.channel.basic_consume(self.on_message_received,
-                                   queue=self.queue)
+        self.channel.basic_consume(self.on_message_received, queue=self.queue)
 
     def on_message_received(self, channel, method_frame, header_frame, body):
         message = createObject('AMQPMessage',
                                body=body,
                                header_frame=header_frame,
                                method_frame=method_frame,
-                               channel=channel)
-        if self.messageInterface:
-            alsoProvides(message, self.messageInterface)
+                               channel=channel,
+                               tx_select=self._tx_select)
+        if self.marker:
+            alsoProvides(message, self.marker)
         self._message_received_callback(message)
+
+
+class security_manager:
+
+    def __init__(self, request, user):
+        self.request = request
+        self.user = user
+
+    def __enter__(self):
+        self.old_security_manager = getSecurityManager()
+        if self.user:
+            return newSecurityManager(self.request, self.user)
+        else:
+            return self.old_security_manager
+
+    def __exit__(self, type, value, traceback):
+        if self.user:
+            setSecurityManager(self.old_security_manager)
+
+
+class ConsumingView(BrowserView):
+
+    def __call__(self):
+        message = self.request.message
+        exchange = self.request.message.method_frame.exchange
+        routing_key = message.method_frame.routing_key
+        delivery_tag = message.method_frame.delivery_tag
+
+        mtool = getToolByName(self.context, "portal_membership")
+        member = mtool.getMemberById(self.request.user_id)
+        if member:
+            acl_users = self.context.getPhysicalRoot().restrictedTraverse(
+                getToolByName(self.context, "acl_users").getPhysicalPath())
+            user = member.getUser().__of__(acl_users)
+        else:
+            user = None
+
+        message._register()
+        event = createObject('AMQPMessageArrivedEvent', message)
+        with security_manager(self.request, user):
+            try:
+                notify(event)
+            except ConflictError:
+                logger.error(("Conflict while working on message '%s' "
+                              "(status = '%s')"),
+                             self.delivery_tag, self.message.state)
+                raise
+            except:
+                exc_type, exc_value, exc_traceback = sys.exc_info()
+                err_handler = queryUtility(IErrorHandler, name=exchange)
+                if err_handler is not None:
+                    err_handler(message, exc_value, exc_traceback)
+                else:
+                    logger.error(("Error while handling message '%s' sent to "
+                                  "exchange '%s' with routing key '%s'"),
+                                 delivery_tag, exchange, routing_key)
+                    raise
+
+        if not message.acknowledged:
+            logger.warning(("Nobody acknowledgd message '%s' sent to exchange "
+                            "exchange '%s' with routing key '%s'"),
+                           delivery_tag, exchange, routing_key)
+        else:
+            logger.info(("Committing transaction for message '%s' "
+                         u"(status = '%s')"),
+                        delivery_tag, message.state)

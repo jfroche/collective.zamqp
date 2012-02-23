@@ -1,0 +1,21 @@
+<component prefix="affinitic.zamqp.datatypes">
+  <sectiontype name="amqp-consuming-server"
+               datatype=".ConsumingServerFactory"
+               implements="ZServer.server">
+     <key name="connection_id" datatype="string">
+       <description>
+       Connection
+       </description>
+     </key>
+     <key name="site_id" datatype="string">
+       <description>
+       Site
+       </description>
+     </key>
+     <key name="user_id" datatype="string">
+     <description>
+       Optional user name
+     </description>
+     </key>
+  </sectiontype>
+</component>

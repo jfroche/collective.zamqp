@@ -18,7 +18,7 @@ from affinitic.zamqp.interfaces import\
     IPublisher, IBrokerConnection, ISerializer
 from affinitic.zamqp.transactionmanager import VTM
 
-from pika import BasicProperties
+from pika import PlainCredentials, ConnectionParameters, BasicProperties
 from pika.exceptions import ChannelClosed
 
 import logging
@@ -116,7 +116,7 @@ class Publisher(grok.GlobalUtility, VTM):
 
     def _basic_publish(self, **kwargs):
         try:
-            self.connection.sync_channel.basic_publish(**kwargs)
+            self.connection.channel.basic_publish(**kwargs)
         except AttributeError:  # sync_channel was not available
             # Publish fails silently unless self.connection.tx_select
             pass
@@ -242,7 +242,7 @@ def getCommandLineConfig():
             exchange, routing_key, message)
 
 
-from pika import PlainCredentials, ConnectionParameters, SelectConnection
+from pika import SelectConnection
 
 
 def main():

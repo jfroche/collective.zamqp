@@ -52,7 +52,7 @@ from zope.component import getUtility, provideSubscriptionAdapter
 from affinitic.zamqp.publisher import Publisher
 from affinitic.zamqp.consumer import Consumer
 
-from affinitic.zamqp.interfaces import IPublisher, IArrivedMessage
+from affinitic.zamqp.interfaces import IPublisher, IMessageArrivedEvent
 
 import logging
 logger = logging.getLogger('affinitic.zamqp')
@@ -105,4 +105,4 @@ def pong(message):
     logger.info('PONG')
     message.ack()
 
-provideSubscriptionAdapter(pong, [IPingMessage], IArrivedMessage)
+provideSubscriptionAdapter(pong, [IPingMessage], IMessageArrivedEvent)

@@ -1,29 +1,23 @@
 <configure xmlns="http://namespaces.zope.org/zope"
            xmlns:grok="http://namespaces.zope.org/grok"
-           xmlns:zcml="http://namespaces.zope.org/zcml"
+           xmlns:browser="http://namespaces.zope.org/browser"
            i18n_domain="affinitic.zamqp">
 
-    <include package="z3c.autoinclude" file="meta.zcml" />
-    <includeDependencies package="." />
-
-    <configure zcml:condition="installed five.dbevent">
-      <include package="five.dbevent" />
-    </configure>
-
-    <configure zcml:condition="installed zope.processlifetime">
-      <subscriber
-          for="zope.processlifetime.IDatabaseOpenedWithRoot"
-          handler=".service.on_database_opened_with_root"/>
-    </configure>
-
-    <configure zcml:condition="not-installed zope.processlifetime">
-      <configure zcml:condition="installed zope.app.appsetup">
-        <subscriber
-            for="zope.app.appsetup.interfaces.IDatabaseOpenedWithRootEvent"
-            handler=".service.on_database_opened_with_root"/>
-      </configure>
-    </configure>
-
+    <include package="z3c.autoinclude" file="meta.zcml"/>
+    <includeDependencies package="."/>
     <grok:grok package="."/>
+
+    <subscriber
+        for="zope.processlifetime.IProcessStarting"
+        handler=".connection.init"
+        />
+
+    <browser:page
+        name="zamqp-consumer"
+        for="Products.CMFCore.interfaces.ISiteRoot"
+        class=".consumer.ConsumingView"
+        permission="zope.Public"
+        layer=".interfaces.IConsumingRequest"
+        />
 
 </configure>

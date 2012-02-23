@@ -8,7 +8,7 @@ Copyright by Affinitic sprl
 Copyright by University of Jyväskylä
 """
 from zope.interface import Interface, Attribute
-from zope.component.interfaces import IObjectEvent, IFactory
+from zope.component.interfaces import IObjectEvent
 
 
 class IBrokerConnection(Interface):
@@ -27,16 +27,11 @@ class IBrokerConnection(Interface):
     virtual_host = Attribute('The virtual host id')
 
 
-class IBrokerConnectionFactory(IFactory):
-
-    def __call__(connectionId):
-        """
-        Create a BrokerConnection by fetching the corresponding BrokerConnection
-        with ``connectionId``
-
-        :param connectionId: the id of the broker connection
-        :rtype: BrokerConnection
-        """
+class IBeforeBrokerConnectEvent(Interface):
+    """
+    En event tiggered once before all connections are connected at the
+    first time. This won't be triggered for reconnections.
+    """
 
 
 class ISerializer(Interface):
@@ -74,23 +69,22 @@ class IConsumer(Interface):
 
     auto_delete = Attribute('')
 
-    messageInterface = Attribute("Return the interface related to the message")
+    marker = Attribute("Return the interface related to the message")
 
 
-class IArrivedMessage(IObjectEvent):
+class IConsumingRequest(Interface):
     """
-    Event fired when a new message has arrived
+    A request marker interface for consuming requests
     """
-
 
 class IMessage(Interface):
     """
     """
 
-class IMessageFactory(Interface):
+class IMessageArrivedEvent(IObjectEvent):
     """
+    Event fired when a new message has arrived
     """
-
 
 class IPublisher(Interface):
     """
