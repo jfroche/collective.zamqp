@@ -52,12 +52,24 @@ class ISerializer(Interface):
         """return de-serialized body"""
 
 
+class IProducer(Interface):
+    """
+    A Producer send message to a queue via an exchange
+    """
+
+    connection_id = Attribute('The BrokerConnection id where the queue '
+                              'is/will be registered')
+
+IPublisher = IProducer  # BBB
+
+
 class IConsumer(Interface):
     """
     A Consumer receive messages sent to a queue via an exchange
     """
 
-    connection_id = Attribute('The connection id where the queue is/will be registered')
+    connection_id = Attribute('The connection id where the queue '
+                              'is/will be registered')
 
     queue = Attribute('Name of the queue')
 
@@ -77,21 +89,16 @@ class IConsumingRequest(Interface):
     A request marker interface for consuming requests
     """
 
+
 class IMessage(Interface):
     """
     """
+
 
 class IMessageArrivedEvent(IObjectEvent):
     """
     Event fired when a new message has arrived
     """
-
-class IPublisher(Interface):
-    """
-    A Publisher send message to a queue via an exchange
-    """
-
-    connection_id = Attribute('The BrokerConnection id where the queue is/will be registered')
 
 
 class IErrorHandler(Interface):
@@ -101,5 +108,19 @@ class IErrorHandler(Interface):
 
     def __call__(message, error, traceback):
         """
-        Do something with the error and the traceback that we got while consuming message
+        Do something with the error and the traceback that we got while
+        consuming message
         """
+
+# BBB for affinitic.zamqp
+
+from zope.deprecation import deprecated
+
+IPublisher = IProducer
+deprecated('IPublisher',
+           'IPublisher is no more. Please, use IProducer instead.')
+
+IArrivedMessage = IMessageArrivedEvent
+deprecated('IArrivedMessage',
+           ('IArrivedMessage is no more. Please, use IMessageArrivedEvent '
+            'instead and subscribe to it as to any IObjectEvent.'))

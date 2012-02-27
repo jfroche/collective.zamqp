@@ -1,4 +1,12 @@
-##############################################################################
+# -*- coding: utf-8 -*-
+###
+# affinitic.zamqp
+#
+# Licensed under the GPL license, see LICENCE.txt for more details.
+#
+# Copyright (c) 2012 University of Jyväskylä
+###
+# This module is a derivate of a work by Chris McDonough for Zope ClockServer.
 #
 # Copyright (c) 2005 Chris McDonough. All Rights Reserved.
 #
@@ -8,17 +16,15 @@
 # WARRANTIES ARE DISCLAIMED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 # WARRANTIES OF TITLE, MERCHANTABILITY, AGAINST INFRINGEMENT, AND FITNESS
 # FOR A PARTICULAR PURPOSE
-#
-##############################################################################
+###
+"""AMQP consuming server, which generates a faux HTTP request for every
+consumed message by adopting the asyncore API"""
 
-""" Zope clock server.  Generate a faux HTTP request on a regular basis
-by coopting the asyncore API. """
-
-import posixpath
 import os
-import socket
 import time
+import socket
 import StringIO
+import posixpath
 
 from ZServer.medusa.http_server import http_request
 from ZServer.medusa.default_handler import unquote
@@ -62,7 +68,9 @@ class DummyChannel:
 
 
 class AMQPRequest(HTTPRequest):
-    """ """
+    """A special HTTPRequest, which carries an AMQP-message, any additional
+    information for its processing and provides IConsumingRequest-marker
+    interface"""
     implements(IConsumingRequest)
 
     def __init__(self, out, env, resp, message, user_id):
@@ -72,6 +80,8 @@ class AMQPRequest(HTTPRequest):
 
 
 class ConsumingServer(object):
+    """AMQP Consuming Server"""
+
     # prototype request environment
     _ENV = dict(REQUEST_METHOD='GET',
                 SERVER_PORT='AMQP',
@@ -166,13 +176,17 @@ class ConsumingServer(object):
         for name, consumerUtility in getUtilitiesFor(IConsumer):
             if consumerUtility.connection_id == self.connection_id:
                 self.consumers.append(consumerUtility.__class__())
-        self.connection = getUtility(IBrokerConnection,
-                                     name=self.connection_id)
-        self.connection.add_on_channel_open_callback(self.on_channel_open)
+                # ^ to simplify consumer, all servers get their own instance
+
+        self._connection = getUtility(IBrokerConnection,
+                                      name=self.connection_id)
+        self._connection.add_on_channel_open_callback(self.on_channel_open)
 
     def on_channel_open(self, channel):
+        self._channel = channel
         for consumer in self.consumers:
-            consumer.consume(channel, self.connection.tx_select,
+            consumer.consume(self._channel,
+                             self._connection.tx_select,
                              self.on_message_received)
 
     def on_message_received(self, message):

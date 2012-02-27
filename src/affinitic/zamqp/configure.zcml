@@ -3,21 +3,29 @@
            xmlns:browser="http://namespaces.zope.org/browser"
            i18n_domain="affinitic.zamqp">
 
-    <include package="z3c.autoinclude" file="meta.zcml"/>
-    <includeDependencies package="."/>
-    <grok:grok package="."/>
+    <include package="grokcore.component" file="meta.zcml"/>
+
+    <grok:grok package=".connection"/>
+    <grok:grok package=".serializers"/>
+    <grok:grok package=".producer"/>
+    <grok:grok package=".consumer"/>
+    <grok:grok package=".message"/>
+    <grok:grok package=".keepalive"/>
+
+    <include package="zope.component" file="meta.zcml"/>
 
     <subscriber
         for="zope.processlifetime.IProcessStarting"
-        handler=".connection.init"
+        handler=".connection.connect_all"
         />
 
+    <include package="zope.browserpage" file="meta.zcml"/>
+
     <browser:page
-        name="zamqp-consumer"
-        for="Products.CMFCore.interfaces.ISiteRoot"
+        name="zamqp-consumer" for="*"
+        layer=".interfaces.IConsumingRequest"
         class=".consumer.ConsumingView"
         permission="zope.Public"
-        layer=".interfaces.IConsumingRequest"
         />
 
 </configure>

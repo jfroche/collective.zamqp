@@ -1,9 +1,12 @@
 # -*- coding: utf-8 -*-
-"""
-Named serializer utilities
-
-Copyright by University of Jyväskylä
-"""
+###
+# affinitic.zamqp
+#
+# Licensed under the GPL license, see LICENCE.txt for more details.
+#
+# Copyright (c) 2012 University of Jyväskylä
+###
+"""Named serializer utilities"""
 
 from grokcore import component as grok
 

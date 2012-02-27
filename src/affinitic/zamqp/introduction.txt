@@ -50,7 +50,7 @@ As you might also see, AMQP also permit asynchronous events in Zope.
 What do we mean by Zope integration ?
 -------------------------------------
 
-  * Using ZCA to declare publisher, consumer and connection to broker. In other word, create a clean Messaging Gateway [#MessagingGateway]_ to be use with zope applications.
+  * Using ZCA to declare producer, consumer and connection to broker. In other word, create a clean Messaging Gateway [#MessagingGateway]_ to be use with zope applications.
   * Messaging with transaction support. Meaning a transactional delivery support together with Zope transaction [#transaction]_ (and ZODB)
   * Using ZCA to implement the Message Translator pattern [#MessageTranslator]_
   * Using ZCA to implement a Publish-Subscribe (aka Observer pattern) inside Zope with message coming from a Queue

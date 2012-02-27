@@ -12,11 +12,11 @@ environments, where firewalls close idle connections).
 Usage
 -----
 
-1. Define publisher and consumer::
+1. Define producer and consumer::
 
-    from affinitic.zamqp.keepalive import PingPublisher, PingConsumer
+    from affinitic.zamqp.keepalive import PingProducer, PingConsumer
 
-    class Ping(PingPublisher):
+    class Ping(PingProducer):
         grok.name("my.app.ping")
         connection_id = "my.app.amqp"
 
@@ -49,10 +49,10 @@ from grokcore import component as grok
 from zope.interface import Interface
 from zope.component import getUtility, provideSubscriptionAdapter
 
-from affinitic.zamqp.publisher import Publisher
+from affinitic.zamqp.producer import Producer
 from affinitic.zamqp.consumer import Consumer
 
-from affinitic.zamqp.interfaces import IPublisher, IMessageArrivedEvent
+from affinitic.zamqp.interfaces import IProducer, IMessageArrivedEvent
 
 import logging
 logger = logging.getLogger('affinitic.zamqp')
@@ -62,7 +62,7 @@ class IPingMessage(Interface):
     """Ping"""
 
 
-class PingPublisher(Publisher):
+class PingProducer(Producer):
     grok.baseclass()
 
     exchange = 'affinitic.zamqp'
@@ -95,10 +95,10 @@ class PingConsumer(Consumer):
 
 
 def ping(name):
-    publisher = getUtility(IPublisher, name=name)
-    publisher._register()
+    producer = getUtility(IProducer, name=name)
+    producer._register()
     logger.info('PING')
-    publisher.send('PING')
+    producer.send('PING')
 
 
 def pong(message):

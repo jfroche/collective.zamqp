@@ -1,12 +1,14 @@
 # -*- coding: utf-8 -*-
-"""
-affinitic.zamqp
+###
+# affinitic.zamqp
+#
+# Licensed under the GPL license, see LICENCE.txt for more details.
+#
+# Copyright by Affinitic sprl
+# Copyright (c) 2012 University of Jyväskylä
+###
+"""Transaction aware AMQP message wrapper"""
 
-Licensed under the GPL license, see LICENCE.txt for more details.
-
-Copyright by Affinitic sprl
-Copyright by University of Jyväskylä
-"""
 import grokcore.component as grok
 
 from zope.interface import implements, implementedBy
@@ -22,9 +24,8 @@ logger = logging.getLogger('affinitic.zamqp')
 
 
 class Message(object, VTM):
-    """
-    A message that can be transaction aware
-    """
+    """A message that can be transaction aware"""
+
     implements(IMessage)
 
     header_frame = None
@@ -66,15 +67,14 @@ class Message(object, VTM):
         return self._deserialized_body or self._serialized_body
 
     def ack(self):
-        """
-        Mark the message as acknowledge.
+        """Mark the message as acknowledge.
 
         If the message is registered in a transaction, we defer transmition of
         acknowledgement.
 
         If the message is not registered in a transaction, we transmit
-        acknowledgement immediately.
-        """
+        acknowledgement immediately."""
+
         if not self.acknowledged and not self.registered():
             self._ack()
         self.acknowledged = True
