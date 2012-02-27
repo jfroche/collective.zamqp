@@ -54,9 +54,9 @@ class Producer(grok.GlobalUtility, VTM):
 
     def __init__(self, connection_id=None, exchange=None, routing_key=None,
                  durable=None, exchange_type=None, exchange_durable=None,
-                 exchange_auto_delete=None, queue=None, queue_durable=None,
-                 queue_exclusive = None, queue_arguments=None,
-                 auto_declare=None, reply_to=None, serializer=None):
+                 queue=None, queue_durable=None, queue_exclusive = None,
+                 queue_arguments=None, auto_declare=None, reply_to=None,
+                 serializer=None):
 
         self._connection = None
         self._queue_of_pending_messages = None

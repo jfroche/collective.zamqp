@@ -73,11 +73,6 @@ class AMQPRequest(HTTPRequest):
     interface"""
     implements(IConsumingRequest)
 
-    def __init__(self, out, env, resp, message, user_id):
-        HTTPRequest.__init__(self, out, env, resp)
-        self.message = message
-        self.user_id = user_id
-
 
 class ConsumingServer(object):
     """AMQP Consuming Server"""
@@ -104,7 +99,7 @@ class ConsumingServer(object):
         h.append('Host: %s' % socket.gethostname())
 
         self.logger = LogHelper(logger)
-        self.log_info(("AMQP Consuming Server for '%s' started "
+        self.log_info(("AMQP Consuming Server for connection '%s' started "
                        "(site '%s' user: '%s')")\
                       % (connection_id, site_id, user_id))
 
@@ -140,7 +135,10 @@ class ConsumingServer(object):
                            '1.0', self.headers)
         env = self.get_env(req)
         resp = make_response(req, env)
-        zreq = AMQPRequest(out, env, resp, message, self.user_id)
+
+        env["AMQP_MESSAGE"] = message
+        env["AMQP_USER_ID"] = self.user_id
+        zreq = AMQPRequest(out, env, resp)
 
         return req, zreq, resp
 

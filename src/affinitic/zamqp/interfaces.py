@@ -29,7 +29,7 @@ class IBrokerConnection(Interface):
 
 class IBeforeBrokerConnectEvent(Interface):
     """
-    En event tiggered once before all connections are connected at the
+    An event tiggered once before all connections are connected at the
     first time. This won't be triggered for reconnections.
     """
 
@@ -123,4 +123,5 @@ deprecated('IPublisher',
 IArrivedMessage = IMessageArrivedEvent
 deprecated('IArrivedMessage',
            ('IArrivedMessage is no more. Please, use IMessageArrivedEvent '
-            'instead and subscribe to it as to any IObjectEvent.'))
+            'instead and subscribe to it as to any IObjectEvent. Subscribers '
+            'for IArrivedMessage won\'t be called.'))

@@ -83,10 +83,7 @@ class BrokerConnection(grok.GlobalUtility):
         parameters = ConnectionParameters(
             self.hostname, self.port, self.virtual_host,
             credentials=credentials,
-            heartbeat=bool(self.heartbeat))
-        # FIXME: Without this, pika 0.9.5 forces interval to 1 second
-        if parameters.heartbeat:
-            parameters.heartbeat = int(self.heartbeat)
+            heartbeat=self.heartbeat)
         strategy = SimpleReconnectionStrategy()
         self._connection = AsyncoreConnection(
             parameters=parameters,

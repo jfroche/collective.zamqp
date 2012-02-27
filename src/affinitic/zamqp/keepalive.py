@@ -47,7 +47,7 @@ Usage
 from grokcore import component as grok
 
 from zope.interface import Interface
-from zope.component import getUtility, provideSubscriptionAdapter
+from zope.component import getUtility
 
 from affinitic.zamqp.producer import Producer
 from affinitic.zamqp.consumer import Consumer
@@ -65,25 +65,20 @@ class IPingMessage(Interface):
 class PingProducer(Producer):
     grok.baseclass()
 
-    exchange = 'affinitic.zamqp'
-    durable = False
-
-    def set_routing_key(self, s):
+    def set_queue(self, s):
         pass
 
-    def get_routing_key(self):
+    def get_queue(self):
         return '%s.ping' % self.connection_id
 
-    routing_key = property(get_routing_key, set_routing_key)
+    exchange = 'affinitic.zamqp'
+    queue = property(get_queue, set_queue)
+    durable = False
 
 
 class PingConsumer(Consumer):
     grok.baseclass()
-
-    exchange = 'affinitic.zamqp'
-    durable = False
-    auto_delete = True
-    messageInterface = IPingMessage
+    marker = IPingMessage
 
     def set_queue(self, s):
         pass
@@ -92,17 +87,17 @@ class PingConsumer(Consumer):
         return '%s.ping' % self.connection_id
 
     queue = property(get_queue, set_queue)
+    durable = False
 
 
 def ping(name):
     producer = getUtility(IProducer, name=name)
     producer._register()
     logger.info('PING')
-    producer.send('PING')
+    producer.publish('PING')
 
 
-def pong(message):
+@grok.subscribe(IPingMessage, IMessageArrivedEvent)
+def pong(message, event):
     logger.info('PONG')
     message.ack()
-
-provideSubscriptionAdapter(pong, [IPingMessage], IMessageArrivedEvent)

@@ -40,84 +40,57 @@ class Consumer(grok.GlobalUtility):
 
     connection_id = None
 
-    queue = None
+    exchange = None
     routing_key = None
     durable = True
-    exclusive = False
-    auto_delete = False
-    arguments = {}
 
-    exchange = None
     exchange_type = 'direct'
     exchange_durable = None
-    exchange_auto_delete = None
-    exchange_auto_declare = None
+
+    queue = None
+    queue_durable = None
+    queue_exclusive = False
+    queue_arguments = {}
 
     auto_declare = True
+
     auto_ack = False
     marker = None
 
-###
-    queue = None
-
-    queue_durable = True
-    queue_exclusive = False
-    queue_auto_delete = False
-    queue_arguments = {}
-
-    exchange = None
-
-    exchange_type = 'direct'
-    exchange_durable = None
-    exchange_auto_delete = None
-
-    routing_key = None
-
-    auto_declare = True
-
-    def __init__(self, connection_id=None,
-                 queue=None, routing_key=None, durable=None,
-                 exclusive=None, auto_delete=None, arguments=None,
-                 exchange=None, exchange_type=None, exchange_durable=None,
-                 exchange_auto_delete=None, exchange_auto_declare=None,
-                 auto_declare=None, auto_ack=None, marker=None):
+    def __init__(self, connection_id=None, exchange=None, routing_key=None,
+                 durable=None, exchange_type=None, exchange_durable=None,
+                 queue=None, queue_durable=None, queue_exclusive = None,
+                 queue_arguments=None, auto_declare=None, auto_ack=None,
+                 marker=None):
 
         # Allow class variables to provide defaults
         self.connection_id = connection_id or self.connection_id
 
-        self.queue = queue or self.queue\
-            or getattr(self, 'grokcore.component.directive.name', None)
-        self.routing_key = routing_key or self.routing_key or self.queue
-
+        self.exchange = exchange or self.exchange
+        self.routing_key = routing_key or self.routing_key
         if durable is not None:
             self.durable = durable
-        if exclusive is not None:
-            self.exclusive = exclusive
-        if auto_delete is not None:
-            self.auto_delete = auto_delete
-        if arguments is not None:
-            self.arguments = arguments
 
-        self.exchange = exchange or self.exchange
         self.exchange_type = exchange_type or self.exchange_type
-
         if exchange_durable is not None:
             self.exchange_durable = exchange_durable
         elif self.exchange_durable is None:
             self.exchange_durable = self.durable
-        if exchange_auto_delete is not None:
-            self.exchange_auto_delete = exchange_auto_delete
-        elif self.exchange_auto_delete is None:
-            self.exchange_auto_delete = self.auto_delete
+
+        self.queue = queue or self.queue
+        if not self.routing_key:
+            self.routing_key = self.queue
+        if queue_durable is not None:
+            self.queue_durable = queue_durable
+        elif self.queue_durable is None:
+            self.queue_durable = self.durable
+        if queue_exclusive is not None:
+            self.queue_exclusive = queue_exclusive
+        if queue_arguments is not None:
+            self.queue_arguments = queue_arguments
 
         if auto_declare is not None:
             self.auto_declare = auto_declare
-        elif not self.exchange:
-            self.auto_declare = False
-        if exchange_auto_declare is not None:
-            self.exchange_auto_declare = exchange_auto_declare
-        elif self.exchange_auto_declare is None:
-            self.exchange_auto_declare = self.auto_declare
 
         if auto_ack is not None:
             self.auto_ack = auto_ack
@@ -138,9 +111,9 @@ class Consumer(grok.GlobalUtility):
         self._tx_select = tx_select
         self._message_received_callback = on_message_received
 
-        if self.exchange_auto_declare:
+        if self.auto_declare and self.exchange:
             self.declare_exchange()
-        elif self.auto_declare:
+        elif self.auto_declare and self.queue:
             self.declare_queue()
         else:
             self.on_ready_to_consume()
@@ -149,26 +122,30 @@ class Consumer(grok.GlobalUtility):
         self._channel.exchange_declare(exchange=self.exchange,
                                        type=self.exchange_type,
                                        durable=self.exchange_durable,
-                                       auto_delete=self.exchange_auto_delete,
+                                       auto_delete=not self.exchange_durable,
                                        callback=self.on_exchange_declared)
 
     def on_exchange_declared(self, frame):
         logger.info("Consumer declared exchange '%s'", self.exchange)
-        if self.auto_declare:
+        if self.auto_declare and self.queue:
             self.declare_queue()
         else:
             self.on_ready_to_consume()
 
     def declare_queue(self):
-        self._channel.queue_declare(queue=self.queue, durable=self.durable,
-                                    exclusive=self.exclusive,
-                                    auto_delete=self.auto_delete,
-                                    arguments=self.arguments,
+        self._channel.queue_declare(queue=self.queue,
+                                    durable=self.queue_durable,
+                                    exclusive=self.queue_exclusive,
+                                    auto_delete=not self.queue_durable,
+                                    arguments=self.queue_arguments,
                                     callback=self.on_queue_declared)
 
     def on_queue_declared(self, frame):
         logger.info("Consumer declared queue '%s'", self.queue)
-        self.bind_queue()
+        if self.auto_declare and self.exchange:
+            self.bind_queue()
+        else:
+            self.on_ready_to_consume()
 
     def bind_queue(self):
         self._channel.queue_bind(exchange=self.exchange, queue=self.queue,
@@ -181,8 +158,14 @@ class Consumer(grok.GlobalUtility):
         self.on_ready_to_consume()
 
     def on_ready_to_consume(self):
-        logger.info("Consumer ready to consume queue '%s'", self.queue)
-        self._channel.basic_consume(self.on_message_received, queue=self.queue)
+        queue = self.queue\
+            or getattr(self, 'grokcore.component.directive.name', None)
+        logger.info("Consumer ready to consume queue '%s'", queue)
+        try:
+            self._channel.basic_consume(self.on_message_received, queue=queue)
+        except Exception as e:
+            print e
+            import pdb; pdb.set_trace()
 
     def on_message_received(self, channel, method_frame, header_frame, body):
         message = createObject('AMQPMessage',
@@ -235,14 +218,16 @@ class security_manager:
 class ConsumingView(BrowserView):
 
     def __call__(self):
-        message = self.request.message
-        exchange = self.request.message.method_frame.exchange
+        message = self.request.environ.get("AMQP_MESSAGE")
+        user_id = self.request.environ.get("AMQP_USER_ID")
+
+        exchange = message.method_frame.exchange
         routing_key = message.method_frame.routing_key
         delivery_tag = message.method_frame.delivery_tag
 
         message._register()
         event = createObject('AMQPMessageArrivedEvent', message)
-        with security_manager(self.request, self.request.user_id):
+        with security_manager(self.request, user_id):
             try:
                 notify(event)
             except ConflictError:
