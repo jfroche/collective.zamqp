@@ -19,4 +19,4 @@ Publisher = Producer
 deprecated('Publisher',
            'Publisher is no more. Please, use Producer instead.')
 
-moved('affinitic.zamqp.producer', 'version 3.0.0')
+moved('affinitic.zamqp.producer', 'version 1.0.0')
