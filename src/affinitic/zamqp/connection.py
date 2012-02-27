@@ -9,6 +9,11 @@
 ###
 """Broker connection utility base class providing Pika's AsyncoreConnection"""
 
+import time
+import random
+import socket
+import asyncore
+
 import grokcore.component as grok
 
 from zope.component import getUtilitiesFor
@@ -18,7 +23,6 @@ from zope.event import notify
 from pika import PlainCredentials, ConnectionParameters
 from pika.adapters.asyncore_connection import\
     AsyncoreConnection as AsyncoreConnectionBase
-from pika.reconnection_strategies import SimpleReconnectionStrategy
 from pika.callback import CallbackManager
 
 from affinitic.zamqp.interfaces import\
@@ -28,9 +32,59 @@ import logging
 logger = logging.getLogger('affinitic.zamqp')
 
 
+class Timeout(asyncore.dispatcher):
+
+    def __init__(self, callback, timeout):
+        asyncore.dispatcher.__init__(self)
+
+        self.deadline = time.time() + timeout
+        self.callback = callback
+
+        self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
+
+    def readable(self):
+        if time.time() > self.deadline:
+            self.close()
+            self.callback()
+        return False
+
+    def handle_read(self):
+        return True
+
+    def handle_write(self):
+        return True
+
+    def writable(self):
+        return False
+
+    def handle_error(self):
+        pass
+
+
 class AsyncoreConnection(AsyncoreConnectionBase):
     __doc__ = AsyncoreConnectionBase.__doc__
-    # TODO: I'm sure we must to customize connection to make SRS to work
+
+    def _adapter_disconnect(self):
+        """
+        Called if we are forced to disconnect for some reason from Connection.
+        """
+        # Close our socket
+        try:
+            self.socket.shutdown(socket.SHUT_RDWR)
+        except socket.error:
+            pass
+        self.socket.close()
+
+        # Remove from the IOLoop
+        self.ioloop.stop()
+
+        # Check our state on disconnect
+        self._check_state_on_disconnect()
+
+        # Close up our Connection state
+        self._on_connection_closed(None, True)
+        # FIXME: ^ this should be called in _handle_disconnect, but not sure,
+        # why that method is not always called
 
 
 class BrokerConnection(grok.GlobalUtility):
@@ -67,6 +121,7 @@ class BrokerConnection(grok.GlobalUtility):
             self.tx_select = tx_select
 
         self._callbacks = CallbackManager()
+        self._reconnection_delay = 1.0
 
         # BBB for affinitic.zamqp
         if getattr(self, "userid", None):
@@ -84,11 +139,18 @@ class BrokerConnection(grok.GlobalUtility):
             self.hostname, self.port, self.virtual_host,
             credentials=credentials,
             heartbeat=self.heartbeat)
-        strategy = SimpleReconnectionStrategy()
         self._connection = AsyncoreConnection(
             parameters=parameters,
-            on_open_callback=self.on_async_connect,
-            reconnection_strategy=strategy)
+            on_open_callback=self.on_async_connect)
+        self._connection.add_on_close_callback(self.reconnect)
+
+    def reconnect(self, conn):
+        connection_id =\
+            getattr(self, 'grokcore.component.directive.name', 'connection')
+        logger.info("Trying to reconnect %s in %s seconds",
+                    connection_id, self._reconnection_delay)
+        self._timeout = Timeout(self.connect, self._reconnection_delay)
+        self._reconnection_delay *= (random.random() * 0.5) + 1.0
 
     @property
     def is_open(self):
@@ -100,6 +162,7 @@ class BrokerConnection(grok.GlobalUtility):
     def on_async_connect(self, connection):
         self._connection = connection
         self._connection.channel(self.on_async_channel_open)
+        self._reconnection_delay = 1.0
 
     def on_async_channel_open(self, channel):
         self._channel = channel
