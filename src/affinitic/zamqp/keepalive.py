@@ -88,16 +88,16 @@ class PingConsumer(Consumer):
 
     queue = property(get_queue, set_queue)
     durable = False
+    auto_ack = True
 
 
 def ping(name):
     producer = getUtility(IProducer, name=name)
     producer._register()
-    logger.info('PING')
     producer.publish('PING')
+    logger.info('PING....')
 
 
 @grok.subscribe(IPingMessage, IMessageArrivedEvent)
 def pong(message, event):
-    logger.info('PONG')
-    message.ack()
+    logger.info('....PONG')
