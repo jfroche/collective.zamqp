@@ -1,50 +1,34 @@
 Defining a Queue Consumer
 =========================
 
-A queue is always linked to one BrokerConnection. So we have to set it up first::
+A queue is always linked to one BrokerConnection. So we have to set it up
+first::
 
     >>> from affinitic.zamqp.connection import BrokerConnection
-    >>> import grokcore.component as grok
-    >>> class DummyBrokerConnection(BrokerConnection):
-    ...     id = 'bar'
-    ...     grok.name(id)
     >>> from affinitic.zamqp.interfaces import IBrokerConnection
     >>> from zope.component import provideUtility
-    >>> conn = DummyBrokerConnection()
-    >>> provideUtility(conn, IBrokerConnection, name=conn.id)
+    >>> conn = BrokerConnection()
+    >>> provideUtility(conn, IBrokerConnection, name='bar')
 
-Now that we have a BrokerConnection, we can define our consumer and link it to the
-connection::
+Now that we have a BrokerConnection, we can define our consumer and link it to
+the connection::
 
     >>> from affinitic.zamqp.consumer import Consumer
     >>> class DummyConsumer(Consumer):
     ...     connection_id = 'bar'
     >>> consumer = DummyConsumer()
-    >>> conn = consumer.connection
-    >>> conn
-    <BrokerConnection: ...>
+    >>> consumer.connection_id
+    'bar'
 
-And the connection is made once for all::
 
-    >>> conn == consumer.connection
-    True
-
-The backend is also defined through the connection::
-
-    >>> consumer.backend
-    <kombu.transport.amqplib.Channel object at ...>
-
-Consumer callbacks and the Message Translator pattern
-=====================================================
+Consumer callbacks
+==================
 
 Once a message is received, the message:
 
-    1. is marked as providing the marker interface declared in the attribute ``messageInterface``
-    2. is marked as providing the ``IMessage`` marker interface
-    3. is adapted based on the ``IMessageWrapper`` adapter (if any)
-    4. is send to all registered callbacks.
-
-1, 2, 3 implements the Message Translator pattern (see http://www.eaipatterns.com/MessageTranslator.html) by calling an adapter.
+    1. is marked as providing the marker interface declared in the attribute
+       ``messageInterface``
+    2. is send to all registered callbacks.
 
 To be able to differentiate messages, we define a simple marker interface::
 
@@ -52,21 +36,22 @@ To be able to differentiate messages, we define a simple marker interface::
     >>> class IBarMessage(Interface):
     ...     "A marker interface for message coming from the bar consumer"
 
-So let's create a simple adapter that adds a timestamp to the incoming messages marked with IBarMessage::
+So let's create a simple adapter that adds a timestamp to the incoming messages
+marked with IBarMessage::
 
     >>> from zope.component import provideAdapter, adapts
     >>> from datetime import datetime
-    >>> from affinitic.zamqp.message import MessageWrapper
-    >>> class MessageWithTimeStamp(MessageWrapper):
+    >>> from affinitic.zamqp.message import Message
+    >>> class MessageWithTimeStamp(Message):
     ...     adapts(IBarMessage)
     ...
     ...     @property
     ...     def incomingDate(self):
     ...         return datetime(2010, 1, 1)
-
     >>> provideAdapter(MessageWithTimeStamp)
 
-We now define our consumer and specify correctly the messageInterface to use for all incoming messages::
+We now define our consumer and specify correctly the messageInterface to use
+for all incoming messages::
 
     >>> class DummyConsumer(Consumer):
     ...     connection_id = 'bar'
@@ -81,19 +66,22 @@ We create a dummy message which fake an incoming message coming from the broker:
     ...     body = 'Hello from Message Broker'
     >>> message = Message()
 
-The ``receive`` method on the consumer will call first the ``_markMessage`` method which will add our marker interface on the incoming message::
+The ``receive`` method on the consumer will call first the ``_markMessage``
+method which will add our marker interface on the incoming message::
 
     >>> message = consumer._markMessage(message)
     >>> IBarMessage.providedBy(message)
     True
 
-Then the ``receive`` method will call the ``_adaptMessage`` method that can adapt our message::
+Then the ``receive`` method will call the ``_adaptMessage`` method that can
+adapt our message::
 
     >>> adaptedMessage = consumer._adaptMessage(message)
     >>> adaptedMessage
     <MessageWithTimeStamp object at ...>
 
-To be able to use the consumer we must define at least one callback otherwise we raise an exception::
+To be able to use the consumer we must define at least one callback otherwise
+we raise an exception::
 
     >>> consumer.receive(message.body, message)
     Traceback (most recent call last):
@@ -108,20 +96,15 @@ So we define a dummy callback that print the message content::
 
 Now each time a message is received, we adapt the message and print it::
 
-    >>> consumer.receive(message.body, message)
+    >>> consumer.on_message_received(None, None, None, message.body)
     <MessageWithTimeStamp object at ...> received on 2010-01-01 00:00:00 with body "Hello from Message Broker"
 
-Makes coverage happy. A backend can be assigned separatly
-
-    >>> consumer.auto_declare = False
-    >>> consumer.backend = 'foo'
-    >>> consumer.backend
-    'foo'
 
 Interface conformance
 =====================
 
-Using ``zope.interface`` to check wheter our implementation does what it promise to implement.
+Using ``zope.interface`` to check wheter our implementation does what it
+promise to implement.
 
     >>> from zope.interface.verify import verifyObject
 
