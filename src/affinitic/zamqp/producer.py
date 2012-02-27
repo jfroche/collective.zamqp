@@ -206,16 +206,23 @@ class Producer(grok.GlobalUtility, VTM):
         retry_callback = lambda func, kwargs: lambda: func(**kwargs)
 
         published = False
-        try:
-            self._channel.basic_publish(**kwargs)
-            published = True
-        except Exception as e:
-            logger.warning(e)
-            self._callbacks.add(0, "_on_ready_to_publish",
-                                retry_callback(self._basic_publish, kwargs))
+        if self._connection.is_open:
+            try:
+                self._channel.basic_publish(**kwargs)
+                published = True
+            except Exception as e:
+                logger.warning(e)
+                self._callbacks.add(
+                    0, "_on_ready_to_publish",
+                    retry_callback(self._basic_publish, kwargs))
+        else:
+            self._callbacks.add(
+                0, "_on_ready_to_publish",
+                retry_callback(self._basic_publish, kwargs))
 
         if published and self._connection.tx_select:
             # do tx_commit for transactional channel
+            logger.info("tx_commit")
             self._channel.tx_commit(self._on_tx_commit)
 
             # tx_commit = False
