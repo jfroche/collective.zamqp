@@ -198,16 +198,16 @@ def on_database_opened_with_root(event):
     zope.conf on 'IDatabaseOpenedWithRoot' event"""
 
     # Start configured services
-    for service_id, opts in get_configured_services():
-        site_id, connection_id = opts.split('@')
-        connection_id = connection_id.split(' ')[0]  # clean deprecated opts.
+    for connection_id, opts in get_configured_services():
+        site_id, service_name = opts.split('@')
+        service_name = connection_id.split(' ')[0]  # clean deprecated opts.
 
         # Start the thread running the processor inside
         processor = ConsumingService(event.database, site_id, connection_id)
 
-        thread = threading.Thread(target=processor, name=service_id)
+        thread = threading.Thread(target=processor, name=service_name)
         thread.setDaemon(True)
         thread.running = True
         thread.start()
 
-        logger.info('Starting AMQP-processor %s', service_id)
+        logger.info('Starting AMQP-processor %s', service_name)
