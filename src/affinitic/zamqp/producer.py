@@ -203,55 +203,32 @@ class Producer(grok.GlobalUtility, VTM):
             self._basic_publish(**msg)
 
     def _basic_publish(self, **kwargs):
-        retry_callback = lambda func, kwargs: lambda: func(**kwargs)
+        retry_constructor = lambda func, kwargs: lambda: func(**kwargs)
 
         published = False
-        if self._connection.is_open:
-            try:
-                self._channel.basic_publish(**kwargs)
-                published = True
-            except Exception as e:
-                logger.warning(e)
-                self._callbacks.add(
-                    0, "_on_ready_to_publish",
-                    retry_callback(self._basic_publish, kwargs))
-        else:
-            self._callbacks.add(
-                0, "_on_ready_to_publish",
-                retry_callback(self._basic_publish, kwargs))
+        if self._connection.is_open and getattr(self, '_channel', None):
+            self._channel.basic_publish(**kwargs)
+            published = True
+        elif self.durable:
+            logger.warning(('No connection. Message was left to wait a new '
+                            'connection. %s'), kwargs)
+            retry_callback = retry_constructor(self._basic_publish, kwargs)
+            self._callbacks.add(0, '_on_ready_to_publish', retry_callback)
 
         if published and self._connection.tx_select:
-            # do tx_commit for transactional channel
-            logger.info("tx_commit")
-            self._channel.tx_commit(self._on_tx_commit)
+            retry_callback = retry_constructor(self._basic_publish, kwargs)
+            tx_commit_constructor =\
+                lambda func, retry: lambda frame: func(frame, retry)
+            tx_commit_callback =\
+                tx_commit_constructor(self._on_tx_commit, retry_callback)
+            self._channel.tx_commit(tx_commit_callback)
 
-            # tx_commit = False
-
-            # if self._connection.connection.is_open:
-            #     try:
-            #         tx_commit = True
-            #     except KeyError:
-            #         pass
-
-            # if tx_commit:
-            #     # commit succcess
-            #     if self.connection._sync_queue_of_failed_messages is not None:
-            #         self._queue_of_pending_messages.extend(
-            #             self.connection._sync_queue_of_failed_messages)
-            #         logger.info('Recovered and sent %s unsent message(s).',
-            #             len(self.connection._sync_queue_of_failed_messages))
-            #         self.connection._sync_queue_of_failed_messages = None
-            # elif self.durable:
-            #     # commit failed for a durable message
-            #     if self.connection._sync_queue_of_failed_messages is None:
-            #         self.connection._sync_queue_of_failed_messages = []
-            #     self.connection.\
-            #         _sync_queue_of_failed_messages.insert(0, kwargs)
-            #     logger.warning('Tx.Commit failed (%s) for %s',
-            #        len(self.connection._sync_queue_of_failed_messages), kwargs)
-
-    def _on_tx_commit(self, frame):
-        pass
+    def _on_tx_commit(self, frame, retry_callback=None):
+        if frame.method.name != 'Tx.CommitOk':
+            logger.warning('Tx.Commit failed for basic_publish. '
+                           'Message may published twice.')
+            self._callbacks.add(0, '_on_ready_to_publish', retry_callback)
+            self.channel.tx_rollback()
 
     def _begin(self):
         self._queue_of_pending_messages = []

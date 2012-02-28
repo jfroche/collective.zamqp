@@ -83,29 +83,26 @@ class Message(object, VTM):
         if self.channel:
             self.channel.basic_ack(
                 delivery_tag=self.method_frame.delivery_tag)
-
-        # on transactional channel, commit before believe in ack
-        if self.channel and self.tx_select:
-            try:
-                self.channel.tx_commit(self._ack_on_tx_commit)
-            except KeyError:
-                logger.warning(("Tx.Commit failed after handling of "
-                                "message '%s'. Message may be handled "
-                                "twice."),
-                               self.method_frame.delivery_tag)
-                try:
-                    self.channel.tx_rollback()
-                except KeyError:
-                    pass  # XXX: Tx.Rollback is allowed to fail silently
-        else:
             self.state = 'ACK'
+
+        # on transactional channel, commit ack
+        if self.channel and self.tx_select:
+            self.channel.tx_commit(self._ack_on_tx_commit)
+        else:
             logger.info("Handled message '%s' (status = '%s')",
                         self.method_frame.delivery_tag, self.state)
 
     def _ack_on_tx_commit(self, frame):
-        self.state = 'ACK'
-        logger.info("Handled message '%s' (status = '%s')",
-                    self.method_frame.delivery_tag, self.state)
+        if frame.method.name == 'Tx.CommitOk':
+            logger.info("Handled message '%s' (status = '%s')",
+                        self.method_frame.delivery_tag, self.state)
+        else:
+            logger.warning(("Tx.Commit failed after handling of "
+                            "message '%s'. Message may be handled "
+                            "twice."),
+                           self.method_frame.delivery_tag)
+            self.channel.tx_rollback()
+            self.state = 'RECEIVED'
 
     def _abort(self):
         self.state = 'RECEIVED'

@@ -87,6 +87,9 @@ class AsyncoreConnection(AsyncoreConnectionBase):
         # Remove from the IOLoop
         self.ioloop.stop()
 
+        # Close our socket
+        self.socket.close()
+
         # Close up our Connection state
         self._on_connection_closed(None, True)
 
@@ -97,12 +100,12 @@ class BrokerConnection(grok.GlobalUtility):
     grok.implements(IBrokerConnection)
     grok.baseclass()
 
-    hostname = "localhost"
+    hostname = 'localhost'
     port = 5672
-    virtual_host = "/"
+    virtual_host = '/'
 
-    username = "guest"
-    password = "guest"
+    username = 'guest'
+    password = 'guest'
 
     heartbeat = 0
     tx_select = None
@@ -128,7 +131,7 @@ class BrokerConnection(grok.GlobalUtility):
         self._reconnection_delay = 1.0
 
         # BBB for affinitic.zamqp
-        if getattr(self, "userid", None):
+        if getattr(self, 'userid', None):
             from zope.deprecation import deprecated
             self.username = self.userid
             self.userid =\
@@ -146,41 +149,48 @@ class BrokerConnection(grok.GlobalUtility):
         # FIXME: ^ heartbeat is buggy in pika 0.9.5
         self._connection = AsyncoreConnection(
             parameters=parameters,
-            on_open_callback=self.on_async_connect)
+            on_open_callback=self.on_connect)
+        self._reconnection_timeout = None
         self._connection.add_on_close_callback(self.reconnect)
 
-    def reconnect(self, conn):
-        connection_id =\
-            getattr(self, 'grokcore.component.directive.name', 'connection')
-        logger.info("Trying to reconnect %s in %s seconds",
-                    connection_id, self._reconnection_delay)
-        self._timeout = AsyncoreTimeout(self.connect, self._reconnection_delay)
-        self._reconnection_delay *= (random.random() * 0.5) + 1.0
-        if self._reconnection_delay >= 60.0:
-            self._reconnection_delay = 60.0
+    def reconnect(self, conn=None):
+        if not getattr(self, '_reconnection_timeout', None):
+            conn_id = getattr(self, 'grokcore.component.directive.name', 'n/a')
+            logger.info("Trying to reconnect connection '%s' in %s seconds",
+                        conn_id, self._reconnection_delay)
+            self._reconnection_timeout =\
+                AsyncoreTimeout(self.connect, self._reconnection_delay)
+            self._reconnection_delay *= (random.random() * 0.5) + 1.0
+            self._reconnection_delay = min(self._reconnection_delay, 60.0)
 
     @property
     def is_open(self):
-        return getattr(self._connection, "is_open", False)
+        return getattr(self._connection, 'is_open', False)
 
     def add_on_channel_open_callback(self, callback):
-        self._callbacks.add(0, "_on_channel_open", callback, False)
+        self._callbacks.add(0, '_on_channel_open', callback, False)
 
-    def on_async_connect(self, connection):
+    def on_connect(self, connection):
         self._connection = connection
-        self._connection.channel(self.on_async_channel_open)
+        self._connection.channel(self.on_channel_open)
         self._reconnection_delay = 1.0
-        self._timeout = None
 
-    def on_async_channel_open(self, channel):
+    def on_channel_open(self, channel):
         self._channel = channel
+        self._channel.add_on_close_callback(self.on_channel_closed)
         if self.tx_select:
-            channel.tx_select(self.on_async_channel_tx_select)
+            channel.tx_select(self.on_channel_tx_select)
         else:
-            self._callbacks.process(0, "_on_channel_open", self, self._channel)
+            self._callbacks.process(0, '_on_channel_open', self, self._channel)
 
-    def on_async_channel_tx_select(self, frame):
-        self._callbacks.process(0, "_on_channel_open", self, self._channel)
+    def on_channel_closed(self, code, text):
+        logger.warning("Channel closed with reason '%s %s'",
+                       code, text)
+        self._connection.close(code, text)
+        self.reconnect()
+
+    def on_channel_tx_select(self, frame):
+        self._callbacks.process(0, '_on_channel_open', self, self._channel)
 
 
 class BeforeBrokerConnectEvent(object):
