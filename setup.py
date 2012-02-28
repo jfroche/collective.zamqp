@@ -47,6 +47,6 @@ setup(name='affinitic.zamqp',
           'zope.processlifetime',
           'zope.browserpage',
           'grokcore.component',
-          'pika',
+          'pika == 0.9.5',
           'zope.deprecation',
           ])

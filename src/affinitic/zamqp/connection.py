@@ -48,6 +48,9 @@ class Timeout(asyncore.dispatcher):
             self.callback()
         return False
 
+    def handle_connect(self):
+        pass
+
     def handle_read(self):
         return True
 
@@ -66,25 +69,26 @@ class AsyncoreConnection(AsyncoreConnectionBase):
 
     def _adapter_disconnect(self):
         """
-        Called if we are forced to disconnect for some reason from Connection.
+        Called if we are forced to disconnect for some reason from Connection
         """
-        # Close our socket
-        try:
-            self.socket.shutdown(socket.SHUT_RDWR)
-        except socket.error:
-            pass
-        self.socket.close()
-
         # Remove from the IOLoop
         self.ioloop.stop()
 
-        # Check our state on disconnect
-        self._check_state_on_disconnect()
+        # Close our socket
+        self.socket.close()
 
         # Close up our Connection state
         self._on_connection_closed(None, True)
-        # FIXME: ^ this should be called in _handle_disconnect, but not sure,
-        # why that method is not always called
+
+    def _handle_disconnect(self):
+        """
+        Called internally when we know our socket is disconnected already
+        """
+        # Remove from the IOLoop
+        self.ioloop.stop()
+
+        # Close up our Connection state
+        self._on_connection_closed(None, True)
 
 
 class BrokerConnection(grok.GlobalUtility):
@@ -137,8 +141,9 @@ class BrokerConnection(grok.GlobalUtility):
             self.username, self.password, erase_on_connect=False)
         parameters = ConnectionParameters(
             self.hostname, self.port, self.virtual_host,
-            credentials=credentials,
-            heartbeat=self.heartbeat)
+            credentials=credentials)
+            # heartbeat=self.heartbeat)
+        # FIXME: ^ heartbeat is buggy in pika 0.9.5
         self._connection = AsyncoreConnection(
             parameters=parameters,
             on_open_callback=self.on_async_connect)
