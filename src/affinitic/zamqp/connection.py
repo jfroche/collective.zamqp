@@ -32,7 +32,7 @@ import logging
 logger = logging.getLogger('affinitic.zamqp')
 
 
-class Timeout(asyncore.dispatcher):
+class AsyncoreTimeout(asyncore.dispatcher):
 
     def __init__(self, callback, timeout):
         asyncore.dispatcher.__init__(self)
@@ -154,8 +154,10 @@ class BrokerConnection(grok.GlobalUtility):
             getattr(self, 'grokcore.component.directive.name', 'connection')
         logger.info("Trying to reconnect %s in %s seconds",
                     connection_id, self._reconnection_delay)
-        self._timeout = Timeout(self.connect, self._reconnection_delay)
+        self._timeout = AsyncoreTimeout(self.connect, self._reconnection_delay)
         self._reconnection_delay *= (random.random() * 0.5) + 1.0
+        if self._reconnection_delay >= 60.0:
+            self._reconnection_delay = 60.0
 
     @property
     def is_open(self):
@@ -168,6 +170,7 @@ class BrokerConnection(grok.GlobalUtility):
         self._connection = connection
         self._connection.channel(self.on_async_channel_open)
         self._reconnection_delay = 1.0
+        self._timeout = None
 
     def on_async_channel_open(self, channel):
         self._channel = channel
