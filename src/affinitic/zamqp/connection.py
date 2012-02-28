@@ -32,7 +32,7 @@ import logging
 logger = logging.getLogger('affinitic.zamqp')
 
 
-class AsyncoreTimeout(asyncore.dispatcher):
+class AsyncoreScheduling(asyncore.dispatcher):
 
     def __init__(self, callback, timeout):
         asyncore.dispatcher.__init__(self)
@@ -66,6 +66,11 @@ class AsyncoreTimeout(asyncore.dispatcher):
 
 class AsyncoreConnection(AsyncoreConnectionBase):
     __doc__ = AsyncoreConnectionBase.__doc__
+
+    # We never disconnect on purpose. Therefore we've overridden both
+    # _adapter_disconnect and _handle_disconnect to close connection completely
+    # and process _on_connection_closed-callbacks to trigger reconnecting
+    # procedure.
 
     def _adapter_disconnect(self):
         """
@@ -159,7 +164,7 @@ class BrokerConnection(grok.GlobalUtility):
             logger.info("Trying to reconnect connection '%s' in %s seconds",
                         conn_id, self._reconnection_delay)
             self._reconnection_timeout =\
-                AsyncoreTimeout(self.connect, self._reconnection_delay)
+                AsyncoreScheduling(self.connect, self._reconnection_delay)
             self._reconnection_delay *= (random.random() * 0.5) + 1.0
             self._reconnection_delay = min(self._reconnection_delay, 60.0)
 
