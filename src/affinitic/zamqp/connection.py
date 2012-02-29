@@ -13,6 +13,7 @@ import time
 import random
 import socket
 import asyncore
+import threading
 
 import grokcore.component as grok
 
@@ -24,6 +25,7 @@ from pika import PlainCredentials, ConnectionParameters
 from pika.adapters.asyncore_connection import\
     AsyncoreConnection as AsyncoreConnectionBase
 from pika.callback import CallbackManager
+from pika.simplebuffer import SimpleBuffer
 
 from affinitic.zamqp.interfaces import\
     IBrokerConnection, IBeforeBrokerConnectEvent
@@ -64,8 +66,68 @@ class AsyncoreScheduling(asyncore.dispatcher):
         pass
 
 
+class LockingSimpleBuffer(SimpleBuffer):
+
+    def __init__(self, data=None):
+        super(LockingSimpleBuffer, self).__init__(data)
+        self.lock = threading.Lock()
+
+    def write(self, *data_strings):
+        """
+        Append given strings to the buffer.
+        """
+        with self.lock:
+            return super(LockingSimpleBuffer, self).write(*data_strings)
+
+    def read(self, size=None):
+        """
+        Read the data from the buffer, at most 'size' bytes.
+        """
+        with self.lock:
+            return super(LockingSimpleBuffer, self).read(size)
+
+    def consume(self, size):
+        """
+        Move pointer and discard first 'size' bytes.
+        """
+        with self.lock:
+            return super(LockingSimpleBuffer, self).consume(size)
+
+    def read_and_consume(self, size):
+        """
+        Read up to 'size' bytes, also remove it from the buffer.
+        """
+        with self.lock:
+            return super(LockingSimpleBuffer, self).read_and_consume(size)
+
+    def send_to_socket(self, sd):
+        """
+        Faster way of sending buffer data to socket 'sd'.
+        """
+        with self.lock:
+            return super(LockingSimpleBuffer, self).send_to_socket(sd)
+
+    def flush(self):
+        """
+        Remove all the data from buffer.
+        """
+        with self.lock:
+            return super(LockingSimpleBuffer, self).flush()
+
+
 class AsyncoreConnection(AsyncoreConnectionBase):
     __doc__ = AsyncoreConnectionBase.__doc__
+
+    def __init__(self, parameters=None, on_open_callback=None,
+                 reconnection_strategy=None):
+        super(AsyncoreConnection, self).__init__(
+            parameters, on_open_callback, reconnection_strategy)
+        self.lock = threading.Lock()
+
+    def _send_method(self, channel_number, method, content=None):
+        with self.lock:
+            return super(AsyncoreConnection, self)._send_method(
+                channel_number, method, content)
 
     # We never disconnect on purpose. Therefore we've overridden both
     # _adapter_disconnect and _handle_disconnect to close connection completely
@@ -98,6 +160,10 @@ class AsyncoreConnection(AsyncoreConnectionBase):
         # Close up our Connection state
         self._on_connection_closed(None, True)
 
+    def _init_connection_state(self):
+        super(AsyncoreConnection, self)._init_connection_state()
+        self.outbound_buffer = LockingSimpleBuffer()
+
 
 class BrokerConnection(grok.GlobalUtility):
     """Connection utility base class"""
@@ -113,7 +179,7 @@ class BrokerConnection(grok.GlobalUtility):
     password = 'guest'
 
     heartbeat = 0
-    tx_select = None
+    tx_select = False
 
     def __init__(self, hostname=None, port=None, virtual_host=None,
                  username=None, password=None, heartbeat=None, tx_select=None):
