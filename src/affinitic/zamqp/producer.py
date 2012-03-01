@@ -9,6 +9,7 @@
 ###
 """Producer utility base class"""
 
+import threading
 
 import grokcore.component as grok
 
@@ -22,8 +23,6 @@ from pika import BasicProperties
 from pika.callback import CallbackManager
 
 import logging
-logger = logging.getLogger('pika')
-logger.setLevel(logging.DEBUG)
 logger = logging.getLogger('affinitic.zamqp')
 
 
@@ -59,7 +58,8 @@ class Producer(grok.GlobalUtility, VTM):
                  serializer=None):
 
         self._connection = None
-        self._queue_of_pending_messages = None
+        self._threadlocal = threading.local()
+        self._threadlocal.pending_messages = None
 
         # Allow class variables to provide defaults
         self.connection_id = connection_id or self.connection_id
@@ -198,47 +198,49 @@ class Producer(grok.GlobalUtility, VTM):
         }
 
         if self.registered():
-            self._queue_of_pending_messages.insert(0, msg)
-        else:
-            self._basic_publish(**msg)
+            self._threadlocal.pending_messages.insert(0, msg)
+        elif self._basic_publish(**msg) and self._connection.tx_select:
+            self._tx_commit()  # minimal support for transactional channel
 
     def _basic_publish(self, **kwargs):
         retry_constructor = lambda func, kwargs: lambda: func(**kwargs)
 
-        published = False
         if self._connection.is_open and getattr(self, '_channel', None):
             self._channel.basic_publish(**kwargs)
-            published = True
+            return True
+
         elif self.durable:
             logger.warning(('No connection. Durable message will be left to ',
                             'wait for the new connection: %s'), kwargs)
             retry_callback = retry_constructor(self._basic_publish, kwargs)
             self._callbacks.add(0, '_on_ready_to_publish', retry_callback)
+            return False
 
-        if published and self._connection.tx_select:
-            retry_callback = retry_constructor(self._basic_publish, kwargs)
-            tx_commit_constructor =\
-                lambda func, retry: lambda frame: func(frame, retry)
-            tx_commit_callback =\
-                tx_commit_constructor(self._on_tx_commit, retry_callback)
-            self._channel.tx_commit(tx_commit_callback)
+    def _tx_commit(self):
+        if self._connection.is_open and getattr(self, '_channel', None):
+            self._channel.tx_commit()
+        else:
+            logger.warning('No connection. Tx.Commit could not be sent.')
 
-    def _on_tx_commit(self, frame, retry_callback=None):
-        if frame.method.name != 'Tx.CommitOk':
-            logger.warning('Tx.Commit failed for basic_publish. '
-                           'Message may published twice.')
-            self._callbacks.add(0, '_on_ready_to_publish', retry_callback)
-            self.channel.tx_rollback()
+    def _tx_rollback(self):
+        if self._connection.is_open and getattr(self, '_channel', None):
+            self._channel.tx_rollback()
+        else:
+            logger.warning('No connection. Tx.Rollback could not be sent.')
 
     def _begin(self):
-        self._queue_of_pending_messages = []
+        self._threadlocal.pending_messages = []
 
     def _abort(self):
-        self._queue_of_pending_messages = None
+        self._threadlocal.pending_messages = None
+        if self._connection.tx_select:
+            self._tx_rollback()  # minimal support for transactional channel
 
     def _finish(self):
-        while self._queue_of_pending_messages:
-            self._basic_publish(**self._queue_of_pending_messages.pop())
+        while self._threadlocal.pending_messages:
+            self._basic_publish(**self._threadlocal.pending_messages.pop())
+        if self._connection.tx_select:
+            self._tx_commit()  # minimal support for transactional channel
 
 
 # BBB for affinitic.zamqp

@@ -85,24 +85,11 @@ class Message(object, VTM):
                 delivery_tag=self.method_frame.delivery_tag)
             self.state = 'ACK'
 
-        # on transactional channel, commit ack
         if self.channel and self.tx_select:
-            self.channel.tx_commit(self._ack_on_tx_commit)
-        else:
-            logger.info("Handled message '%s' (status = '%s')",
-                        self.method_frame.delivery_tag, self.state)
+            self.channel.tx_commit()  # min support for transactional channel
 
-    def _ack_on_tx_commit(self, frame):
-        if frame.method.name == 'Tx.CommitOk':
-            logger.info("Handled message '%s' (status = '%s')",
-                        self.method_frame.delivery_tag, self.state)
-        else:
-            logger.warning(("Tx.Commit failed after handling of "
-                            "message '%s'. Message may be handled "
-                            "twice."),
-                           self.method_frame.delivery_tag)
-            self.channel.tx_rollback()
-            self.state = 'RECEIVED'
+        logger.info("Handled message '%s' (status = '%s')",
+                    self.method_frame.delivery_tag, self.state)
 
     def _abort(self):
         self.state = 'RECEIVED'
@@ -110,20 +97,11 @@ class Message(object, VTM):
 
         # on transactional channel, rollback on abort
         if self.channel and self.tx_select:
-            try:
-                self.channel.tx_rollback()
-            except KeyError:
-                pass  # XXX: Tx.Rollback is allowed to fail silently
+            self.channel.tx_rollback()  # min support for transactional channel
 
     def _finish(self):
         if self.acknowledged and not self.state == 'ACK':
             self._ack()
-        elif not self.acknowledged:
-            # on transactional channel, rollback if message has not been acked
-            try:
-                self.channel.tx_rollback()
-            except KeyError:
-                pass  # XXX: Tx.Rollback is allowed to fail silently
 
     def __getattr__(self, name):
         if hasattr(self.__class__, name):
