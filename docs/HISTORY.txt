@@ -1,6 +1,14 @@
 Changelog
 =========
 
+
+0.7.1 (2012-02-06)
+------------------
+
+- Allowed new named AMQP Broker Connections to be defined in zope.conf
+  (or in 'zope-conf-additional' in instance buildout recipe).
+
+
 0.7.0 (2012-02-05)
 ------------------
 
