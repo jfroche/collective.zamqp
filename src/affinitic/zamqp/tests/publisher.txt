@@ -1,63 +1,42 @@
-Publisher and transaction
+Producer and transaction
 -------------------------
 
-If the publisher is transaction aware, a message sent to the publisher will be
+If the producer is transaction aware, a message sent to the producer will be
 transfered to the message broker once the transaction has been commited::
 
-    >>> from kombu.tests.mocks import Transport
-    >>> class FakeBackend(Transport):
-    ...
-    ...     def establish_connection(self):
-    ...         print 'establishing connection with backend'
-    ...         return super(FakeBackend, self).establish_connection()
-
     >>> from affinitic.zamqp.connection import BrokerConnection
-    >>> class DummyBrokerConnection(BrokerConnection):
-    ...     hostname = 'localhost'
-    ...     port = 12
-    ...
-    ...     def create_transport(self):
-    ...         return FakeBackend(client=self)
-
     >>> from zope.component import provideUtility
     >>> from affinitic.zamqp.interfaces import IBrokerConnection
-    >>> provideUtility(DummyBrokerConnection(), IBrokerConnection, name='bar')
+    >>> provideUtility(BrokerConnection(), IBrokerConnection, name='bar')
 
-    >>> from affinitic.zamqp.publisher import Publisher
-    >>> class FakePublisher(Publisher):
+    >>> from affinitic.zamqp.producer import Producer
+    >>> class FakeProducer(Producer):
     ...
     ...     connection_id = 'bar'
     ...
-    ...     def _sendToBroker(self, message_data, routing_key=None, delivery_mode=None,
-    ...                       mandatory=False, immediate=False, priority=0, content_type=None,
-    ...                       content_encoding=None, serializer=None):
-    ...         print "Sending to message broker: '%s' with priority: %s " % (message_data, priority)
-
+    ...     def _basic_publish(self, **kwargs):
+    ...         print "Sending to message broker: '%s' with priority: %s" %\
+    ...             (kwargs['body'], kwargs['properties'].priority)
 
     >>> import transaction
-    >>> tr = transaction.begin()
-    >>> pub = FakePublisher()
-    establishing connection with backend
+    >>> transaction.begin()
+    <transaction...>
+    >>> pub = FakeProducer()
     >>> pub._register()
-    >>> pub._queueOfPendingMessage
+    >>> pub._queue_of_pending_messages
     []
 
 A connection is established to the Broker, but nothing is send yet::
 
     >>> pub.send('My Message', priority=10)
     >>> from pprint import pprint
-    >>> pprint(pub._queueOfPendingMessage)
-    [{'data': 'My Message',
-      'info': {'content_encoding': None,
-               'content_type': None,
-               'delivery_mode': None,
-               'immediate': False,
-               'mandatory': False,
-               'priority': 10,
-               'routing_key': None,
-               'serializer': None}}]
+    >>> pprint(pub._queue_of_pending_messages)
+    [{'body': 'My Message',
+      'exchange': None,
+      'properties': <BasicProperties([...'priority=10'...])>,
+      'routing_key': None}]
     >>> pub.send('My Better Message', priority=1)
-    >>> len(pub._queueOfPendingMessage)
+    >>> len(pub._queue_of_pending_messages)
     2
     >>> transaction.commit()
     Sending to message broker: 'My Message' with priority: 10
@@ -65,35 +44,31 @@ A connection is established to the Broker, but nothing is send yet::
 
 If the transaction is aborted, nothing gets sent to the server:
 
-    >>> tr = transaction.begin()
-    >>> pub = FakePublisher()
-
+    >>> transaction.begin()
+    <transaction...>
+    >>> pub = FakeProducer()
     >>> pub._register()
-    >>> pub._queueOfPendingMessage
+    >>> pub._queue_of_pending_messages
     []
     >>> pub.send('My Message', priority=10)
     >>> from pprint import pprint
-    >>> pprint(pub._queueOfPendingMessage)
-    [{'data': 'My Message',
-      'info': {'content_encoding': None,
-               'content_type': None,
-               'delivery_mode': None,
-               'immediate': False,
-               'mandatory': False,
-               'priority': 10,
-               'routing_key': None,
-               'serializer': None}}]
+    >>> pprint(pub._queue_of_pending_messages)
+    [{'body': 'My Message',
+      'exchange': None,
+      'properties': <BasicProperties([...'priority=10'...])>,
+      'routing_key': None}]
     >>> pub.send('My Better Message', priority=1)
-    >>> len(pub._queueOfPendingMessage)
+    >>> len(pub._queue_of_pending_messages)
     2
     >>> transaction.abort()
-    >>> pub._queueOfPendingMessage is None
+    >>> pub._queue_of_pending_messages is None
     True
 
-If the publisher is not transaction awe, the message gets sent directly to the server:
+If the producer is not transaction awe, the message gets sent directly to the
+server:
 
-    >>> pub = FakePublisher()
-    >>> pub._queueOfPendingMessage is None
+    >>> pub = FakeProducer()
+    >>> pub._queue_of_pending_messages is None
     True
     >>> pub.send('My Message', priority=10)
     Sending to message broker: 'My Message' with priority: 10
@@ -101,7 +76,7 @@ If the publisher is not transaction awe, the message gets sent directly to the s
     Sending to message broker: 'My Better Message' with priority: 1
 
 
-Command line parsing for publisher
+Command line parsing for producer
 ----------------------------------
 
     >>> import sys
@@ -114,7 +89,7 @@ Command line parsing for publisher
 
 If you don't provide enough argument, it will print you the usage and exit::
 
-    >>> from affinitic.zamqp.publisher import getCommandLineConfig
+    >>> from affinitic.zamqp.producer import getCommandLineConfig
     >>> getCommandLineConfig()
     Usage: publishmsg [-h | -o hostname -t port -u (userid) -p (password) -v (virtual_host) -e (exchange) -r (routing_key) -m (message)]
     ...
@@ -147,15 +122,16 @@ Testing if we provide the right parameter, everything is returned correctly::
     ...                    '-v', 'virtual1', '-e', 'exchange1', '-r', 'routing1',
     ...                    '-m', 'Superb Message']
     >>> getCommandLineConfig()
-    ('localhost', '20', 'john', 'secret', 'virtual1', 'exchange1', 'routing1', 'Superb Message')
+    ('localhost', 20, 'virtual1', 'john', 'secret', 'exchange1', 'routing1', 'Superb Message')
 
     >>> sys.argv = ['cmd', '--hostname', 'localhost', '--port', '20', '--user', 'john',
-    ...                    '--password', 'secret', '--virtual-host', 'virtual1', 
+    ...                    '--password', 'secret', '--virtual-host', 'virtual1',
     ...                    '--exchange', 'exchange1', '--routing-key', 'routing1',
     ...                    '--message', 'Superb Message']
     >>> getCommandLineConfig()
-    ('localhost', '20', 'john', 'secret', 'virtual1', 'exchange1', 'routing1', 'Superb Message')
+    ('localhost', 20, 'virtual1', 'john', 'secret', 'exchange1', 'routing1', 'Superb Message')
     >>> sys.argv = argvOriginal
+
 
 Interface conformance
 =====================
@@ -166,6 +142,6 @@ Using ``zope.interface`` to check wheter our implementation does what it promise
 
 Check the Consumer::
 
-    >>> from affinitic.zamqp.interfaces import IPublisher
-    >>> verifyObject(IPublisher, FakePublisher())
+    >>> from affinitic.zamqp.interfaces import IProducer
+    >>> verifyObject(IProducer, FakeProducer())
     True

@@ -1,29 +1,31 @@
 <configure xmlns="http://namespaces.zope.org/zope"
            xmlns:grok="http://namespaces.zope.org/grok"
-           xmlns:zcml="http://namespaces.zope.org/zcml"
-           i18n_domain="zamqp">
+           xmlns:browser="http://namespaces.zope.org/browser"
+           i18n_domain="affinitic.zamqp">
 
-    <include package="z3c.autoinclude" file="meta.zcml" />
-    <includeDependencies package="." />
+    <include package="grokcore.component" file="meta.zcml"/>
 
-    <configure zcml:condition="installed five.dbevent">
-      <include package="five.dbevent" />
-    </configure>
+    <grok:grok package=".connection"/>
+    <grok:grok package=".serializers"/>
+    <grok:grok package=".producer"/>
+    <grok:grok package=".consumer"/>
+    <grok:grok package=".message"/>
+    <grok:grok package=".keepalive"/>
 
-    <configure zcml:condition="installed zope.processlifetime">
-      <subscriber
-          for="zope.processlifetime.IDatabaseOpenedWithRoot"
-          handler=".service.bootStrapSubscriber"/>
-    </configure>
+    <include package="zope.component" file="meta.zcml"/>
 
-    <configure zcml:condition="not-installed zope.processlifetime">
-      <configure zcml:condition="installed zope.app.appsetup">
-        <subscriber
-            for="zope.app.appsetup.interfaces.IDatabaseOpenedWithRootEvent"
-            handler=".service.bootStrapSubscriber"/>
-      </configure>
-    </configure>
+    <subscriber
+        for="zope.processlifetime.IProcessStarting"
+        handler=".connection.connect_all"
+        />
 
-    <grok:grok package="."/>
+    <include package="zope.browserpage" file="meta.zcml"/>
+
+    <browser:page
+        name="zamqp-consumer" for="*"
+        layer=".interfaces.IConsumingRequest"
+        class=".consumer.ConsumingView"
+        permission="zope.Public"
+        />
 
 </configure>

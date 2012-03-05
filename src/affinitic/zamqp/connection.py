@@ -1,67 +1,284 @@
 # -*- coding: utf-8 -*-
-"""
-affinitic.zamqp
+###
+# affinitic.zamqp
+#
+# Licensed under the GPL license, see LICENCE.txt for more details.
+#
+# Copyright by Affinitic sprl
+# Copyright (c) 2012 University of Jyväskylä
+###
+"""Broker connection utility base class providing Pika's AsyncoreConnection"""
 
-Licensed under the GPL license, see LICENCE.txt for more details.
-Copyright by Affinitic sprl
+import time
+import random
+import socket
+import asyncore
+import threading
 
-$Id$
-"""
 import grokcore.component as grok
-from zope.component import getUtility
-from zope.component.interfaces import IFactory
-from zope.interface import implementedBy
 
-from kombu.connection import BrokerConnection as KombuBrokerConnection
+from zope.component import getUtilitiesFor
+from zope.interface import implements
+from zope.event import notify
 
-from affinitic.zamqp.interfaces import IBrokerConnection, IBrokerConnectionFactory
+from pika import PlainCredentials, ConnectionParameters
+from pika.adapters.asyncore_connection import\
+    AsyncoreConnection as AsyncoreConnectionBase
+from pika.callback import CallbackManager
+from pika.simplebuffer import SimpleBuffer
+
+from affinitic.zamqp.interfaces import\
+    IBrokerConnection, IBeforeBrokerConnectEvent
+
+import logging
+logger = logging.getLogger('affinitic.zamqp')
 
 
-class BrokerConnection(grok.GlobalUtility, KombuBrokerConnection):
-    """
-    Connection utility to the message broker
+class AsyncoreScheduling(asyncore.dispatcher):
 
-    See `<#affinitic.zamqp.interfaces.IBrokerConnection>`_ for more details.
-    """
+    def __init__(self, callback, timeout):
+        asyncore.dispatcher.__init__(self)
+
+        self.deadline = time.time() + timeout
+        self.callback = callback
+
+        self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
+
+    def readable(self):
+        if time.time() > self.deadline:
+            self.close()
+            self.callback()
+        return False
+
+    def handle_connect(self):
+        pass
+
+    def handle_read(self):
+        return True
+
+    def handle_write(self):
+        return True
+
+    def writable(self):
+        return False
+
+    def handle_error(self):
+        pass
+
+
+class LockingSimpleBuffer(SimpleBuffer):
+
+    def __init__(self, data=None):
+        super(LockingSimpleBuffer, self).__init__(data)
+        self.lock = threading.Lock()
+
+    def write(self, *data_strings):
+        """
+        Append given strings to the buffer.
+        """
+        with self.lock:
+            return super(LockingSimpleBuffer, self).write(*data_strings)
+
+    def read(self, size=None):
+        """
+        Read the data from the buffer, at most 'size' bytes.
+        """
+        with self.lock:
+            return super(LockingSimpleBuffer, self).read(size)
+
+    def consume(self, size):
+        """
+        Move pointer and discard first 'size' bytes.
+        """
+        with self.lock:
+            return super(LockingSimpleBuffer, self).consume(size)
+
+    def read_and_consume(self, size):
+        """
+        Read up to 'size' bytes, also remove it from the buffer.
+        """
+        with self.lock:
+            return super(LockingSimpleBuffer, self).read_and_consume(size)
+
+    def send_to_socket(self, sd):
+        """
+        Faster way of sending buffer data to socket 'sd'.
+        """
+        with self.lock:
+            return super(LockingSimpleBuffer, self).send_to_socket(sd)
+
+    def flush(self):
+        """
+        Remove all the data from buffer.
+        """
+        with self.lock:
+            return super(LockingSimpleBuffer, self).flush()
+
+
+class AsyncoreConnection(AsyncoreConnectionBase):
+    __doc__ = AsyncoreConnectionBase.__doc__
+
+    def __init__(self, parameters=None, on_open_callback=None,
+                 reconnection_strategy=None):
+        super(AsyncoreConnection, self).__init__(
+            parameters, on_open_callback, reconnection_strategy)
+        self.lock = threading.Lock()
+
+    def _send_method(self, channel_number, method, content=None):
+        with self.lock:
+            return super(AsyncoreConnection, self)._send_method(
+                channel_number, method, content)
+
+    # We never disconnect on purpose. Therefore we've overridden both
+    # _adapter_disconnect and _handle_disconnect to close connection completely
+    # and process _on_connection_closed-callbacks to trigger reconnecting
+    # procedure.
+
+    def _adapter_disconnect(self):
+        """
+        Called if we are forced to disconnect for some reason from Connection
+        """
+        # Remove from the IOLoop
+        self.ioloop.stop()
+
+        # Close our socket
+        self.socket.close()
+
+        # Close up our Connection state
+        self._on_connection_closed(None, True)
+
+    def _handle_disconnect(self):
+        """
+        Called internally when we know our socket is disconnected already
+        """
+        # Remove from the IOLoop
+        self.ioloop.stop()
+
+        # Close our socket
+        self.socket.close()
+
+        # Close up our Connection state
+        self._on_connection_closed(None, True)
+
+    def _init_connection_state(self):
+        super(AsyncoreConnection, self)._init_connection_state()
+        self.outbound_buffer = LockingSimpleBuffer()
+
+
+class BrokerConnection(grok.GlobalUtility):
+    """Connection utility base class"""
+
     grok.implements(IBrokerConnection)
     grok.baseclass()
 
-    id = None
-    hostname = "localhost"
+    hostname = 'localhost'
     port = 5672
-    userid = None
-    password = None
-    virtual_host = "/"
+    virtual_host = '/'
 
-    def __init__(self, hostname=None, userid=None,
-                 password=None, virtual_host=None, port=None, insist=False,
-                 ssl=False, transport=None, connect_timeout=5,
-                 transport_options=None, login_method=None, **kwargs):
+    username = 'guest'
+    password = 'guest'
 
-        # Allow class variables to provide defaults
-        hostname = hostname or self.hostname
-        port = port or self.port
-        userid = userid or self.userid
-        password = password or self.password
-        virtual_host = virtual_host or self.virtual_host
+    heartbeat = 0
+    tx_select = False
 
-        super(BrokerConnection, self).__init__(
-            hostname, userid, password, virtual_host, port, insist,
-            ssl, transport, login_method, **kwargs)
+    def __init__(self, hostname=None, port=None, virtual_host=None,
+                 username=None, password=None, heartbeat=None, tx_select=None):
+
+        # allow class variables to provide defaults
+        self.hostname = hostname or self.hostname
+        self.port = port or self.port
+        self.virtual_host = virtual_host or self.virtual_host
+
+        self.username = username or self.username
+        self.password = password or self.password
+
+        if heartbeat is not None:
+            self.heartbeat = heartbeat
+
+        if tx_select is not None:
+            self.tx_select = tx_select
+
+        self._callbacks = CallbackManager()
+        self._reconnection_delay = 1.0
+
+        # BBB for affinitic.zamqp
+        if getattr(self, 'userid', None):
+            from zope.deprecation import deprecated
+            self.username = self.userid
+            self.userid =\
+                deprecated(self.userid,
+                           ('Connection.userid is no more. '
+                            'Please, use Connection.username instead.'))
+
+    def connect(self):
+        credentials = PlainCredentials(
+            self.username, self.password, erase_on_connect=False)
+        parameters = ConnectionParameters(
+            self.hostname, self.port, self.virtual_host,
+            credentials=credentials)
+            # heartbeat=self.heartbeat)
+        # FIXME: ^ heartbeat is buggy in pika 0.9.5
+        self._connection = AsyncoreConnection(
+            parameters=parameters,
+            on_open_callback=self.on_connect)
+        self._reconnection_timeout = None
+        self._connection.add_on_close_callback(self.reconnect)
+
+    def reconnect(self, conn=None):
+        if not getattr(self, '_reconnection_timeout', None):
+            conn_id = getattr(self, 'grokcore.component.directive.name', 'n/a')
+            logger.info("Trying to reconnect connection '%s' in %s seconds",
+                        conn_id, self._reconnection_delay)
+            self._reconnection_timeout =\
+                AsyncoreScheduling(self.connect, self._reconnection_delay)
+            self._reconnection_delay *= (random.random() * 0.5) + 1.0
+            self._reconnection_delay = min(self._reconnection_delay, 60.0)
+
+    @property
+    def is_open(self):
+        return getattr(self._connection, 'is_open', False)
+
+    def add_on_channel_open_callback(self, callback):
+        self._callbacks.add(0, '_on_channel_open', callback, False)
+
+    def on_connect(self, connection):
+        self._connection = connection
+        self._connection.channel(self.on_channel_open)
+        self._reconnection_delay = 1.0
+
+    def on_channel_open(self, channel):
+        self._channel = channel
+        self._channel.add_on_close_callback(self.on_channel_closed)
+        if self.tx_select:
+            channel.tx_select(self.on_channel_tx_select)
+        else:
+            self._callbacks.process(0, '_on_channel_open', self, self._channel)
+
+    def on_channel_closed(self, code, text):
+        logger.warning("Channel closed with reason '%s %s'",
+                       code, text)
+        self._connection.close(code, text)
+        self.reconnect()
+
+    def on_channel_tx_select(self, frame):
+        self._callbacks.process(0, '_on_channel_open', self, self._channel)
 
 
-class BrokerConnectionFactory(object):
-    grok.implements(IBrokerConnectionFactory)
-
-    title = 'BrokerConnection Factory'
-    description = 'Help creating a new Broker connection'
-
-    def getInterfaces(self):
-        return implementedBy(BrokerConnection)
-
-    def __call__(self, connectionId):
-        return getUtility(IBrokerConnection, name=connectionId).__class__()
+class BeforeBrokerConnectEvent(object):
+    implements(IBeforeBrokerConnectEvent)
 
 
-grok.global_utility(BrokerConnectionFactory,
-    provides=IFactory, name='AMQPBrokerConnection')
+def connect_all(self):
+    """Connect all connections, which have related utilities registered"""
+
+    # Notify all, who want to register callbacks for connections
+    notify(BeforeBrokerConnectEvent())
+
+    # Gather all producer and consumer utility registrations
+    from affinitic.zamqp.interfaces import IProducer, IConsumer
+    regs = list(getUtilitiesFor(IProducer)) + list(getUtilitiesFor(IConsumer))
+
+    # Connect all connections, which have related utilities registered
+    for connection_id, connection in getUtilitiesFor(IBrokerConnection):
+        if filter(lambda reg: reg[1].connection_id == connection_id, regs):
+            connection.connect()

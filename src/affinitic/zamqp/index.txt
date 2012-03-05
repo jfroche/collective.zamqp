@@ -11,7 +11,7 @@ Contents:
    connection
    consumer
    consumerset
-   publisher
+   producer
    message
    changelog
 

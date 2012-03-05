@@ -1,106 +1,108 @@
-Message wrapper attributes lookup
----------------------------------
+Message attributes lookup
+-------------------------
 
-The message wrapper enable to lookup attribute first on its own class and if the attribute isn't found then it looks up in the adapted message.
+The message enables to lookup attribute first on its own class and if the
+attribute isn't found then it looks up in the adapted message body.
 
-Some setup first. We create a fake amqp message.
+Create an example message::
 
-    >>> from affinitic.zamqp.interfaces import IMessage
-    >>> from zope.interface import implements
-    >>> class DummyAMQPMessage(object):
-    ...     implements(IMessage)
-    ...     _state = ''
-    ...
-    ...     def ack(self):
-    ...         self._state = 'ACK'
+    >>> from affinitic.zamqp.message import Message
+    >>> body = {'key': 'value'}
+    >>> message = Message(body=body)
+    >>> message
+    <affinitic.zamqp.message.Message object at ...>
 
+The message does have a state property, which will be looked up directly::
 
-    >>> from affinitic.zamqp.interfaces import IMessageWrapper
-    >>> message = DummyAMQPMessage()
-    >>> messageWrapper = IMessageWrapper(message)
-    >>> messageWrapper
-    <affinitic.zamqp.message.MessageWrapper object at ...>
+    >>> message.state
+    'RECEIVED'
 
-The message wrapper does not have a _state attribute but the
-lookup will look in the adapted object (the DummyAMQPMessage object)::
+But message does not have a keys nor a items method and those will be looked up
+from the adapted message body::
 
-    >>> messageWrapper._state
-    ''
-    >>> messageWrapper.ack()
-    >>> messageWrapper._state
+    >>> message.keys()
+    ['key']
+
+    >>> message.items()
+    [('key', 'value')]
+
+And, again, state will be kept updated and look up directly::
+
+    >>> message.ack()
+    >>> message.state
     'ACK'
 
 
 Message and transaction
 -----------------------
 
-If the message is transaction aware and is acknowledged then the message broker receives acknowledgement
-only on commit::
+If the message is transaction aware and is acknowledged then the message broker
+receives acknowledgement only on commit::
 
-    >>> message = DummyAMQPMessage()
     >>> import transaction
-    >>> tr = transaction.begin()
-    >>> messageWrapper = IMessageWrapper(message)
-    >>> messageWrapper.acknowledged
+
+    >>> message = Message()
+    >>> transaction.begin()
+    <transaction...>
+    >>> message.acknowledged
     False
-    >>> messageWrapper._register()
-    >>> messageWrapper.acknowledged
+    >>> message._register()
+    >>> message.acknowledged
     False
-    >>> message._state
-    ''
-    >>> messageWrapper.ack()
-    >>> messageWrapper.acknowledged
+    >>> message.state
+    'RECEIVED'
+    >>> message.ack()
+    >>> message.acknowledged
     True
-    >>> message._state
-    ''
+    >>> message.state
+    'RECEIVED'
     >>> transaction.commit()
-    >>> message._state
+    >>> message.state
     'ACK'
 
 If the transaction is aborted::
 
-    >>> message = DummyAMQPMessage()
-    >>> import transaction
-    >>> tr = transaction.begin()
-    >>> from affinitic.zamqp.interfaces import IMessageWrapper
-    >>> messageWrapper = IMessageWrapper(message)
-    >>> messageWrapper._register()
-    >>> messageWrapper.acknowledged
+    >>> message = Message()
+    >>> transaction.begin()
+    <transaction...>
+    >>> message._register()
+    >>> message.acknowledged
     False
-    >>> message._state
-    ''
-    >>> messageWrapper.ack()
-    >>> messageWrapper.acknowledged
+    >>> message.state
+    'RECEIVED'
+    >>> message.ack()
+    >>> message.acknowledged
     True
-    >>> message._state
-    ''
+    >>> message.state
+    'RECEIVED'
     >>> transaction.abort()
-    >>> message._state
-    ''
-    >>> messageWrapper.acknowledged
+    >>> message.state
+    'RECEIVED'
+    >>> message.acknowledged
     False
 
-If the message is not acknowledged nothing happen on the message.
+If the message is not acknowledged nothing happen on the message::
 
-    >>> tr = transaction.begin()
-    >>> message = DummyAMQPMessage()
-    >>> messageWrapper = IMessageWrapper(message)
-    >>> messageWrapper._register()
-    >>> messageWrapper.acknowledged
+    >>> transaction.begin()
+    <transaction...>
+    >>> message = Message()
+    >>> message._register()
+    >>> message.acknowledged
     False
-    >>> message._state
-    ''
+    >>> message.state
+    'RECEIVED'
     >>> transaction.commit()
-    >>> message._state
-    ''
+    >>> message.state
+    'RECEIVED'
 
-If we work without a transaction, message receive directly the acknowledgment
+If you work without a transaction, messages receive the acknowledgment
+directly::
 
-    >>> messageWrapper = IMessageWrapper(message)
-    >>> message._state
-    ''
-    >>> messageWrapper.ack()
-    >>> messageWrapper.acknowledged
+    >>> message = Message()
+    >>> message.state
+    'RECEIVED'
+    >>> message.ack()
+    >>> message.acknowledged
     True
-    >>> message._state
+    >>> message.state
     'ACK'
