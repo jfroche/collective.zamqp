@@ -1,4 +1,50 @@
 <component prefix="collective.zamqp.datatypes">
+  <sectiontype name="amqp-broker-connection"
+               datatype=".BrokerConnectionFactory"
+               implements="ZServer.server">
+     <key name="connection_id" datatype="string">
+       <description>
+       Connection id, which is the registered name of the created
+       global BrokerConnection-utility.
+       </description>
+     </key>
+     <key name="hostname" datatype="string" default="localhost">
+       <description>
+       Hostname or IP Address to connect to, default to localhost.
+       </description>
+     </key>
+     <key name="port" datatype="integer" default="5672">
+       <description>
+       TCP port to connecto, defaults to 5672.
+       </description>
+     </key>
+     <key name="virtual_host" datatype="string" default="/">
+       <description>
+       RabbitMQ virtual host to use, defaults to /.
+       </description>
+     </key>
+     <key name="username" datatype="string" default="guest">
+       <description>
+       Plain text username, defaults to guest.
+       </description>
+     </key>
+     <key name="password" datatype="string" default="guest">
+       <description>
+       Plain text password, defaults to guest.
+       </description>
+     </key>
+     <key name="heartbeat" datatype="integer" default="0">
+       <description>
+       AMQP heartbeat interval in seconds, defaults to 0 to disable heartbeat.
+       </description>
+     </key>
+     <key name="tx_select" datatype="boolean" default="off">
+       <description>
+       Use transactional AMQP channels, defaults to off.
+       </description>
+     </key>
+  </sectiontype>
+
   <sectiontype name="amqp-consuming-server"
                datatype=".ConsumingServerFactory"
                implements="ZServer.server">

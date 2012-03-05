@@ -171,6 +171,8 @@ class BrokerConnection(grok.GlobalUtility):
     grok.implements(IBrokerConnection)
     grok.baseclass()
 
+    connection_id = None
+
     hostname = 'localhost'
     port = 5672
     virtual_host = '/'
@@ -181,10 +183,13 @@ class BrokerConnection(grok.GlobalUtility):
     heartbeat = 0
     tx_select = False
 
-    def __init__(self, hostname=None, port=None, virtual_host=None,
-                 username=None, password=None, heartbeat=None, tx_select=None):
+    def __init__(self, connection_id=None, hostname=None, port=None,
+                 virtual_host=None, username=None, password=None,
+                 heartbeat=None, tx_select=None):
 
         # allow class variables to provide defaults
+        self.connection_id = connection_id or self.connection_id
+
         self.hostname = hostname or self.hostname
         self.port = port or self.port
         self.virtual_host = virtual_host or self.virtual_host
@@ -226,7 +231,8 @@ class BrokerConnection(grok.GlobalUtility):
 
     def reconnect(self, conn=None):
         if not getattr(self, '_reconnection_timeout', None):
-            conn_id = getattr(self, 'grokcore.component.directive.name', 'n/a')
+            conn_id = self.connection_id or\
+                getattr(self, 'grokcore.component.directive.name', 'n/a')
             logger.info("Trying to reconnect connection '%s' in %s seconds",
                         conn_id, self._reconnection_delay)
             self._reconnection_timeout =\

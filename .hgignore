@@ -18,3 +18,4 @@ src/arsia.*
 versions-picked.cfg
 *.pyc
 *.egg-info*
+dist
