@@ -1,0 +1,197 @@
+# -*- coding: utf-8 -*-
+###
+# collective.zamqp
+#
+# Licensed under the GPL license, see LICENCE.txt for more details.
+#
+# Copyright (c) 2012 University of Jyväskylä
+###
+# This module is a derivate of a work by Chris McDonough for Zope ClockServer.
+#
+# Copyright (c) 2005 Chris McDonough. All Rights Reserved.
+#
+# This software is subject to the provisions of the Zope Public License,
+# Version 2.1 (ZPL).  A copy of the ZPL should accompany this distribution.
+# THIS SOFTWARE IS PROVIDED "AS IS" AND ANY AND ALL EXPRESS OR IMPLIED
+# WARRANTIES ARE DISCLAIMED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF TITLE, MERCHANTABILITY, AGAINST INFRINGEMENT, AND FITNESS
+# FOR A PARTICULAR PURPOSE
+###
+"""AMQP consuming server, which generates a faux HTTP request for every
+consumed message by adopting the asyncore API"""
+
+import os
+import time
+import socket
+import StringIO
+import posixpath
+
+from ZServer.medusa.http_server import http_request
+from ZServer.medusa.default_handler import unquote
+from ZServer.PubCore import handle
+from ZServer.HTTPResponse import make_response
+from ZPublisher.HTTPRequest import HTTPRequest
+
+from zope.interface import implements
+from zope.component import\
+    getUtility, getUtilitiesFor, provideHandler
+
+from collective.zamqp.interfaces import\
+    IBrokerConnection, IBeforeBrokerConnectEvent,\
+    IConsumer, IConsumingRequest
+
+import logging
+logger = logging.getLogger('collective.zamqp')
+
+
+class LogHelper:
+    def __init__(self, logger):
+        self.logger = logger
+
+    def log(self, ip, msg, **kw):
+        self.logger.log(ip + ' ' + msg)
+
+
+class DummyChannel:
+    # we need this minimal do-almost-nothing channel class to appease medusa
+    addr = ['127.0.0.1']
+    closed = 1
+
+    def __init__(self, server):
+        self.server = server
+
+    def push_with_producer(self):
+        pass
+
+    def close_when_done(self):
+        pass
+
+
+class AMQPRequest(HTTPRequest):
+    """A special HTTPRequest, which carries an AMQP-message, any additional
+    information for its processing and provides IConsumingRequest-marker
+    interface"""
+    implements(IConsumingRequest)
+
+
+class ConsumingServer(object):
+    """AMQP Consuming Server"""
+
+    # prototype request environment
+    _ENV = dict(REQUEST_METHOD='GET',
+                SERVER_PORT='AMQP',
+                SERVER_NAME='AMQP Consuming Server',
+                SERVER_SOFTWARE='Zope',
+                SERVER_PROTOCOL='HTTP/1.0',
+                SCRIPT_NAME='',
+                GATEWAY_INTERFACE='CGI/1.1',
+                REMOTE_ADDR='0')
+
+    # required by ZServer
+    SERVER_IDENT = 'AMQP'
+
+    def __init__(self, connection_id, site_id, user_id=None,
+                 logger=None, handler=None):
+
+        h = self.headers = []
+        h.append('User-Agent: AMQP Consuming Server')
+        h.append('Accept: text/html,text/plain')
+        h.append('Host: %s' % socket.gethostname())
+
+        self.logger = LogHelper(logger)
+        self.log_info(("AMQP Consuming Server for connection '%s' started "
+                       "(site '%s' user: '%s')")\
+                      % (connection_id, site_id, user_id))
+
+        if handler is None:
+            # for unit testing
+            handler = handle
+        self.zhandler = handler
+
+        self.connection_id = connection_id
+        self.site_id = site_id
+        self.user_id = user_id
+
+        self.consumers = []
+        provideHandler(self.on_before_broker_connect,
+                       [IBeforeBrokerConnectEvent])
+
+    # log and log_info may be overridden to provide more sophisticated
+    # logging and warning methods. In general, log is for 'hit' logging
+    # and 'log_info' is for informational, warning and error logging.
+
+    def log(self, message):
+        logger.error(message)
+
+    def log_info(self, message, type='info'):
+        logger.log(getattr(logging, type.upper(), 20), message)
+
+    def get_requests_and_response(self, message):
+        method = '%s/@@zamqp-consumer' % self.site_id
+
+        out = StringIO.StringIO()
+        s_req = '%s %s HTTP/%s' % ('GET', method, '1.0')
+        req = http_request(DummyChannel(self), s_req, 'GET', method,
+                           '1.0', self.headers)
+        env = self.get_env(req)
+        resp = make_response(req, env)
+
+        env["AMQP_MESSAGE"] = message
+        env["AMQP_USER_ID"] = self.user_id
+        zreq = AMQPRequest(out, env, resp)
+
+        return req, zreq, resp
+
+    def get_env(self, req):
+        env = self._ENV.copy()
+        (path, params, query, fragment) = req.split_uri()
+        if params:
+            path = path + params  # undo medusa bug
+        while path and path[0] == '/':
+            path = path[1:]
+        if '%' in path:
+            path = unquote(path)
+        if query:
+            # ZPublisher doesn't want the leading '?'
+            query = query[1:]
+        env['PATH_INFO'] = '/' + path
+        env['PATH_TRANSLATED'] = posixpath.normpath(
+            posixpath.join(os.getcwd(), env['PATH_INFO']))
+        if query:
+            env['QUERY_STRING'] = query
+        env['channel.creation_time'] = time.time()
+        for header in req.header:
+            key, value = header.split(":", 1)
+            key = key.upper()
+            value = value.strip()
+            key = 'HTTP_%s' % ("_".join(key.split("-")))
+            if value:
+                env[key] = value
+        return env
+
+    def on_before_broker_connect(self, event=None):
+        self.consumers = []
+        for name, consumerUtility in getUtilitiesFor(IConsumer):
+            if consumerUtility.connection_id == self.connection_id:
+                self.consumers.append(consumerUtility.__class__())
+                # ^ to simplify consumer, all servers get their own instance
+
+        self._connection = getUtility(IBrokerConnection,
+                                      name=self.connection_id)
+        self._connection.add_on_channel_open_callback(self.on_channel_open)
+
+    def on_channel_open(self, channel):
+        self._channel = channel
+        for consumer in self.consumers:
+            consumer.consume(self._channel,
+                             self._connection.tx_select,
+                             self.on_message_received)
+
+    def on_message_received(self, message):
+        logger.info(("Received message '%s' sent to exchange '%s' with "
+                     "routing key '%s'"),
+                    message.method_frame.delivery_tag,
+                    message.method_frame.exchange,
+                    message.method_frame.routing_key)
+        req, zreq, resp = self.get_requests_and_response(message)
+        self.zhandler('Zope2', zreq, resp)

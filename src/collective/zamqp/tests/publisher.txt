@@ -1,0 +1,147 @@
+Producer and transaction
+-------------------------
+
+If the producer is transaction aware, a message sent to the producer will be
+transfered to the message broker once the transaction has been commited::
+
+    >>> from collective.zamqp.connection import BrokerConnection
+    >>> from zope.component import provideUtility
+    >>> from collective.zamqp.interfaces import IBrokerConnection
+    >>> provideUtility(BrokerConnection(), IBrokerConnection, name='bar')
+
+    >>> from collective.zamqp.producer import Producer
+    >>> class FakeProducer(Producer):
+    ...
+    ...     connection_id = 'bar'
+    ...
+    ...     def _basic_publish(self, **kwargs):
+    ...         print "Sending to message broker: '%s' with priority: %s" %\
+    ...             (kwargs['body'], kwargs['properties'].priority)
+
+    >>> import transaction
+    >>> transaction.begin()
+    <transaction...>
+    >>> pub = FakeProducer()
+    >>> pub._register()
+    >>> pub._queue_of_pending_messages
+    []
+
+A connection is established to the Broker, but nothing is send yet::
+
+    >>> pub.send('My Message', priority=10)
+    >>> from pprint import pprint
+    >>> pprint(pub._queue_of_pending_messages)
+    [{'body': 'My Message',
+      'exchange': None,
+      'properties': <BasicProperties([...'priority=10'...])>,
+      'routing_key': None}]
+    >>> pub.send('My Better Message', priority=1)
+    >>> len(pub._queue_of_pending_messages)
+    2
+    >>> transaction.commit()
+    Sending to message broker: 'My Message' with priority: 10
+    Sending to message broker: 'My Better Message' with priority: 1
+
+If the transaction is aborted, nothing gets sent to the server:
+
+    >>> transaction.begin()
+    <transaction...>
+    >>> pub = FakeProducer()
+    >>> pub._register()
+    >>> pub._queue_of_pending_messages
+    []
+    >>> pub.send('My Message', priority=10)
+    >>> from pprint import pprint
+    >>> pprint(pub._queue_of_pending_messages)
+    [{'body': 'My Message',
+      'exchange': None,
+      'properties': <BasicProperties([...'priority=10'...])>,
+      'routing_key': None}]
+    >>> pub.send('My Better Message', priority=1)
+    >>> len(pub._queue_of_pending_messages)
+    2
+    >>> transaction.abort()
+    >>> pub._queue_of_pending_messages is None
+    True
+
+If the producer is not transaction awe, the message gets sent directly to the
+server:
+
+    >>> pub = FakeProducer()
+    >>> pub._queue_of_pending_messages is None
+    True
+    >>> pub.send('My Message', priority=10)
+    Sending to message broker: 'My Message' with priority: 10
+    >>> pub.send('My Better Message', priority=1)
+    Sending to message broker: 'My Better Message' with priority: 1
+
+
+Command line parsing for producer
+----------------------------------
+
+    >>> import sys
+    >>> exitOriginal = sys.exit
+    >>> def exit(level=0):
+    ...     print '--Exit with level %s--' % level
+    >>> sys.exit = exit
+    >>> argvOriginal = sys.argv
+    >>> sys.argv = []
+
+If you don't provide enough argument, it will print you the usage and exit::
+
+    >>> from collective.zamqp.producer import getCommandLineConfig
+    >>> getCommandLineConfig()
+    Usage: publishmsg [-h | -o hostname -t port -u (userid) -p (password) -v (virtual_host) -e (exchange) -r (routing_key) -m (message)]
+    ...
+    --Exit with level 2--
+    (None, 5672, None, None, None, None, None, None)
+
+If you provide wrong arguments, it will print you the usage and exit::
+
+    >>> sys.argv = ['cmd', '--foobar']
+    >>> getCommandLineConfig()
+    option --foobar not recognized
+    Usage: publishmsg [-h | -o hostname -t port -u (userid) -p (password) -v (virtual_host) -e (exchange) -r (routing_key) -m (message)]
+    ...
+    --Exit with level 2--
+    (None, 5672, None, None, None, None, None, None)
+
+To get help, just use `publishmsg -h` or `publishmsg --help`::
+
+    >>> sys.argv = ['cmd', '-h']
+    >>> getCommandLineConfig()
+    Usage: publishmsg [-h | -o hostname -t port -u (userid) -p (password) -v (virtual_host) -e (exchange) -r (routing_key) -m (message)]
+    ...
+    --Exit with level 0--
+    (None, 5672, None, None, None, None, None, None)
+    >>> sys.exit = exitOriginal
+
+Testing if we provide the right parameter, everything is returned correctly::
+
+    >>> sys.argv = ['cmd', '-o', 'localhost', '-t', '20', '-u', 'john', '-p', 'secret',
+    ...                    '-v', 'virtual1', '-e', 'exchange1', '-r', 'routing1',
+    ...                    '-m', 'Superb Message']
+    >>> getCommandLineConfig()
+    ('localhost', 20, 'virtual1', 'john', 'secret', 'exchange1', 'routing1', 'Superb Message')
+
+    >>> sys.argv = ['cmd', '--hostname', 'localhost', '--port', '20', '--user', 'john',
+    ...                    '--password', 'secret', '--virtual-host', 'virtual1',
+    ...                    '--exchange', 'exchange1', '--routing-key', 'routing1',
+    ...                    '--message', 'Superb Message']
+    >>> getCommandLineConfig()
+    ('localhost', 20, 'virtual1', 'john', 'secret', 'exchange1', 'routing1', 'Superb Message')
+    >>> sys.argv = argvOriginal
+
+
+Interface conformance
+=====================
+
+Using ``zope.interface`` to check wheter our implementation does what it promise to implement.
+
+    >>> from zope.interface.verify import verifyObject
+
+Check the Consumer::
+
+    >>> from collective.zamqp.interfaces import IProducer
+    >>> verifyObject(IProducer, FakeProducer())
+    True

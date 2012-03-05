@@ -1,0 +1,97 @@
+Product configuration from zope.conf
+====================================
+
+To test the configuration that will be coming from the zope.conf file, change
+the global config object that is given by ``getConfiguration``::
+
+    >>> from App.config import getConfiguration
+    >>> config = getConfiguration()
+
+If you don't configure any connection, an empty list is returned::
+
+    >>> from collective.zamqp.service import get_configured_services
+
+    >>> config.product_config = {}
+    >>> get_configured_services()
+    []
+
+If you configure two connections, you get the two connections in tuples, easy
+to convert into key/values of a dictionary::
+
+    >>> config = getConfiguration()
+    >>> config.product_config = {'collective.zamqp': {'conn1' : 'foo@bar',
+    ...                                              'conn2' : 'bar@foo'}}
+    >>> dict(get_configured_services())
+    {'conn2': 'bar@foo', 'conn1': 'foo@bar'}
+
+
+ConsumingService loop after Zope initialization
+===============================================
+
+We define the two connection corresponding to the previous configuration.
+
+The bar connection first::
+
+    >>> from collective.zamqp.connection import BrokerConnection
+    >>> from collective.zamqp.interfaces import IBrokerConnection
+    >>> from zope.component import provideUtility
+
+    >>> conn = BrokerConnection()
+    >>> provideUtility(conn, IBrokerConnection, name='bar')
+
+Then the foo connection is created::
+
+    >>> conn = BrokerConnection()
+    >>> provideUtility(conn, IBrokerConnection, name='foo')
+
+To be able to get the output from the two threads that will be created, you
+need to setup some logging (which is thread safe)::
+
+    >>> import logging
+    >>> import StringIO
+    >>> logger = logging.getLogger('collective.zamqp')
+    >>> logger.setLevel(logging.DEBUG)
+    >>> stream = StringIO.StringIO()
+    >>> h = logging.StreamHandler(stream)
+    >>> logger.addHandler(h)
+
+One more fake object, a database::
+
+    >>> class FakeDb(object):
+    ...
+    ...     def open(self):
+    ...         pass
+    >>> db = FakeDb()
+
+And fake the ``IDatabaseOpenedWithRootEvent`` event::
+
+    >>> class FakeDatabaseOpenedWithRootEvent(object):
+    ...     database = db
+    >>> event = FakeDatabaseOpenedWithRootEvent()
+
+This should at last read the configuration and initialise the two thread, one
+for consuming messages on connection bar and another for consuming messages on
+connection foo::
+
+    >>> from collective.zamqp import service
+    >>> service.on_database_opened_with_root(event)
+
+This starts a couple of new threads so wait a bit
+
+    >>> from time import sleep
+    >>> sleep(1)
+
+The log should have now informations telling that the two thread were
+trying to consume, but failed to connect, because we haven't setup the
+connection to connect to any real broker::
+
+    >>> print "\n".join(sorted(stream.getvalue().split("\n")))
+    <BLANKLINE>
+    Connection failed or closed unexpectedly: [Errno 111] Connection refused
+    Connection failed or closed unexpectedly: [Errno 111] Connection refused
+    Creating a new Pika connection
+    Creating a new Pika connection
+    Starting AMQP-processor conn1
+    Starting AMQP-processor conn2
+    Trying reconnection in 1... seconds
+    Trying reconnection in 1... seconds

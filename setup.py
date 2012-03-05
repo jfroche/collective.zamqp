@@ -1,9 +1,9 @@
 from setuptools import setup, find_packages
 import os
 
-version = '0.7dev'
+version = '0.7'
 
-setup(name='affinitic.zamqp',
+setup(name='collective.zamqp',
       version=version,
       description="AMQP consumer and producer integration for Zope2",
       long_description=open("README.txt").read() + "\n" +
@@ -16,18 +16,18 @@ setup(name='affinitic.zamqp',
         "Programming Language :: Python",
         ],
       keywords='',
-      author='Jean-Francois Roche',
-      author_email='jfroche@affinitic.be',
-      url='http://bitbucket.org/jfroche/affinitic.zamqp',
+      author='Asko Soukka',
+      author_email='asko.soukka@iki.fi',
+      url='',
       license='ZPL',
       packages=find_packages('src', exclude=['ez_setup']),
       package_dir={'': 'src'},
-      namespace_packages=['affinitic'],
+      namespace_packages=['collective'],
       include_package_data=True,
       zip_safe=False,
       entry_points={
             'console_scripts': [
-                  'publishmsg = affinitic.zamqp.cli:main']},
+                  'publishmsg = collective.zamqp.cli:main']},
       extras_require=dict(
             test=['zope.testing', 'Zope2', 'five.dbevent'],
             zope210=['five.dbevent', 'uuid', 'python-cjson'],

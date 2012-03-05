@@ -1,0 +1,108 @@
+Message attributes lookup
+-------------------------
+
+The message enables to lookup attribute first on its own class and if the
+attribute isn't found then it looks up in the adapted message body.
+
+Create an example message::
+
+    >>> from collective.zamqp.message import Message
+    >>> body = {'key': 'value'}
+    >>> message = Message(body=body)
+    >>> message
+    <collective.zamqp.message.Message object at ...>
+
+The message does have a state property, which will be looked up directly::
+
+    >>> message.state
+    'RECEIVED'
+
+But message does not have a keys nor a items method and those will be looked up
+from the adapted message body::
+
+    >>> message.keys()
+    ['key']
+
+    >>> message.items()
+    [('key', 'value')]
+
+And, again, state will be kept updated and look up directly::
+
+    >>> message.ack()
+    >>> message.state
+    'ACK'
+
+
+Message and transaction
+-----------------------
+
+If the message is transaction aware and is acknowledged then the message broker
+receives acknowledgement only on commit::
+
+    >>> import transaction
+
+    >>> message = Message()
+    >>> transaction.begin()
+    <transaction...>
+    >>> message.acknowledged
+    False
+    >>> message._register()
+    >>> message.acknowledged
+    False
+    >>> message.state
+    'RECEIVED'
+    >>> message.ack()
+    >>> message.acknowledged
+    True
+    >>> message.state
+    'RECEIVED'
+    >>> transaction.commit()
+    >>> message.state
+    'ACK'
+
+If the transaction is aborted::
+
+    >>> message = Message()
+    >>> transaction.begin()
+    <transaction...>
+    >>> message._register()
+    >>> message.acknowledged
+    False
+    >>> message.state
+    'RECEIVED'
+    >>> message.ack()
+    >>> message.acknowledged
+    True
+    >>> message.state
+    'RECEIVED'
+    >>> transaction.abort()
+    >>> message.state
+    'RECEIVED'
+    >>> message.acknowledged
+    False
+
+If the message is not acknowledged nothing happen on the message::
+
+    >>> transaction.begin()
+    <transaction...>
+    >>> message = Message()
+    >>> message._register()
+    >>> message.acknowledged
+    False
+    >>> message.state
+    'RECEIVED'
+    >>> transaction.commit()
+    >>> message.state
+    'RECEIVED'
+
+If you work without a transaction, messages receive the acknowledgment
+directly::
+
+    >>> message = Message()
+    >>> message.state
+    'RECEIVED'
+    >>> message.ack()
+    >>> message.acknowledged
+    True
+    >>> message.state
+    'ACK'

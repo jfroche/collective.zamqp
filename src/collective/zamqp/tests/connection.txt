@@ -1,0 +1,68 @@
+Defining a BrokerConnection
+===========================
+
+Define a connection with id *bar*. Note that the connection id is registered
+as the utility name::
+
+    >>> from collective.zamqp.connection import BrokerConnection
+    >>> import grokcore.component as grok
+    >>> class DummyBrokerConnection(BrokerConnection):
+    ...     grok.name('bar')
+
+As you don't have grok in here, just use zope.component to define the utility
+(normally this step is done magically by grok)::
+
+    >>> from collective.zamqp.interfaces import IBrokerConnection
+    >>> from zope.component import provideUtility
+    >>> conn = DummyBrokerConnection()
+    >>> provideUtility(conn, IBrokerConnection, name='bar')
+
+
+Using BrokerConnectionFactory
+=============================
+
+It's now easy to create an AMQP connection (a `BrokerConnection
+<#collective.zamqp.connection.BrokerConnection>`_) using the ``createObject``
+factory call from ``zope.component``::
+
+    >>> from zope.component import createObject
+    >>> connection = createObject('AMQPBrokerConnection', 'bar')
+    >>> connection
+    <DummyBrokerConnection object at ...>
+
+And if we ask for another connection, we get a new connection::
+
+    >>> connection2 = createObject('AMQPBrokerConnection', 'bar')
+    >>> connection == connection2
+    False
+
+
+Interface conformance
+=====================
+
+Using ``zope.interface`` to check wheter our implementation does what it
+promise to implement.
+
+    >>> from zope.interface.verify import verifyObject
+
+For BrokerConnection::
+
+    >>> from collective.zamqp.interfaces import IBrokerConnection
+    >>> from collective.zamqp.connection import BrokerConnection
+    >>> verifyObject(IBrokerConnection, BrokerConnection())
+    True
+
+For BrokerConnectionFactory::
+
+    >>> from collective.zamqp.interfaces import IBrokerConnectionFactory
+    >>> from collective.zamqp.connection import BrokerConnectionFactory
+    >>> factory = BrokerConnectionFactory()
+    >>> verifyObject(IBrokerConnectionFactory, factory)
+    True
+
+The provided interface by the objects created by the factory is
+IBrokerConnection
+
+    >>> implemented = factory.getInterfaces()
+    >>> implemented.isOrExtends(IBrokerConnection)
+    True

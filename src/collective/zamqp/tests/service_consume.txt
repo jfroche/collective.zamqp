@@ -1,0 +1,217 @@
+Handling incoming messages using ConsumingService
+=================================================
+
+ConsumerService runs a Pika IOLoop for waiting messages from consumers and
+processes them in order as they come. ConsumerService registers every message
+into the transaction machinery and pass them to ZCA subscribers.
+
+Create a bar connection first::
+
+    >>> from collective.zamqp.interfaces import IBrokerConnection
+    >>> from collective.zamqp.connection import BrokerConnection
+    >>> from zope.component import provideUtility
+
+    >>> conn = BrokerConnection()
+    >>> provideUtility(conn, IBrokerConnection, name='bar')
+
+Fake an Application, a site, a database object and a db connection::
+
+    >>> from zope.component import getGlobalSiteManager
+    >>> class Site(object):
+    ...     """
+    ...     A fake site with a site manager
+    ...     """
+    ...
+    ...     def getSiteManager(self):
+    ...         return getGlobalSiteManager()
+
+    >>> class Application(object):
+    ...     """
+    ...     A fake Application with one site
+    ...     """
+    ...
+    ...     site1 = Site()
+
+    >>> class Connection(object):
+    ...     """
+    ...     A fake connection to the root of a ZODB
+    ...     """
+    ...
+    ...     def sync(self):
+    ...         pass
+    ...
+    ...     def root(self):
+    ...         return {'Application': Application()}
+
+    >>> class FakeDb(object):
+    ...     """
+    ...     A fake database
+    ...     """
+    ...
+    ...     def open(self):
+    ...         return Connection()
+
+    >>> db = FakeDb()
+
+Create by hand a ConsumingService. It is normally instantiated by the
+``on_database_opened_with_root``-subscriber once the connection to the ZODB is
+ready after Zope startup.
+
+Pass it the database connection, the name of the site that will call the
+subscribers, and then name of the connection that will be used to instantiate
+the consumers::
+
+    >>> from collective.zamqp.service import ConsumingService
+    >>> service = ConsumingService(db, 'site1', 'bar')
+
+The site related to this service is the one created previously::
+
+    >>> service.site
+    <Site object ...>
+
+Finally, attach the connection manually, because the threading service cannot
+really be started in this test::
+
+    >>> service.connection = conn
+
+Fake a message and its properties::
+
+    >>> from collective.zamqp.interfaces import IMessage
+    >>> from zope.interface import implements
+    >>> class DummyAMQPProperties(object):
+    ...     """Dummy object for method and header frame"""
+    >>> class DummyAMQPMessage(object):
+    ...     implements(IMessage)
+    ...     def __init__(self):
+    ...         self.method_frame = DummyAMQPProperties()
+    ...         self.method_frame.exchange = "SuperExchange"
+    ...         self.method_frame.routing_key = "X"
+    ...         self.method_frame.delivery_tag = 1
+    ...         self.state = "RECEIVED"
+    ...     def ack(self):
+    ...         self.state = 'ACK'
+    >>> message = DummyAMQPMessage()
+
+Mark the message with a marker interface so that subscribers will be able
+to subscribe to this specific type of message::
+
+    >>> from zope.interface import Interface, alsoProvides
+    >>> class IDummyMessage(Interface):
+    ...     """
+    ...     Marker interface for dummy message
+    ...     """
+    >>> alsoProvides(message, IDummyMessage)
+
+To be able to get the output from the threads that will be created,
+setup some logging (which is thread safe)::
+
+    >>> import logging
+    >>> import StringIO
+    >>> logger = logging.getLogger('collective.zamqp')
+    >>> logger.setLevel(logging.DEBUG)
+    >>> logger.handlers = []
+    >>> stream = StringIO.StringIO()
+    >>> h = logging.StreamHandler(stream)
+    >>> logger.addHandler(h)
+
+
+Process a message without subscription adapter
+----------------------------------------------
+
+Notify a new incoming message (this is normally called by the consuming service
+loop)::
+
+    >>> service.on_message_received(message)
+
+Read what happen thanks to the logging. And see that no subscriber handled our
+message and nobody acknowledged it::
+
+    >>> print stream.getvalue()
+    Received message 1 sent to exchange SuperExchange with routing key X
+    Committing transaction for message 1 (status = RECEIVED)
+    Handled message 1 (status = RECEIVED)
+    Nobody handled message 1 sent to exchange SuperExchange with routing key X
+    <BLANKLINE>
+
+
+Process a message with one subscription adapter
+-----------------------------------------------
+
+Now use a new message and define a subscriber to see what happens.
+
+Reset the logging stream::
+
+    >>> stream.truncate(0)
+
+Mark the message as being another one::
+
+    >>> message.method_frame.delivery_tag = 2
+
+Register a subscription adapter that log a dummy message and acknowledge the
+dummy message::
+
+    >>> from zope.component import provideSubscriptionAdapter
+    >>> def loggingSubscriber(message):
+    ...     logger = logging.getLogger('collective.zamqp')
+    ...     logger.debug('Subscriber handling message %s' % message)
+    ...     message.ack()
+    ...     return True
+
+    >>> from collective.zamqp.interfaces import IArrivedMessage
+    >>> provideSubscriptionAdapter(
+    ...     loggingSubscriber, [IDummyMessage], IArrivedMessage)
+
+Notify again new incoming message (this is normally called by the processor
+loop)::
+
+    >>> service.on_message_received(message)
+
+Read what happen thanks to the logging. And see that our subscriber handled our
+message and acknowledged it. You can see also that before transaction commit
+the message is still marked as not being acknowledged::
+
+    >>> print stream.getvalue()
+    Received message 2 sent to exchange SuperExchange with routing key X
+    Subscriber handling message <DummyAMQPMessage object at ...>
+    Committing transaction for message 2 (status = ACK)
+    Handled message 2 (status = ACK)
+    <BLANKLINE>
+
+
+Process a message with one failing subscription adapter
+-------------------------------------------------------
+
+See what happen if one of the subscription adapter is failing.
+
+Reset the logging stream::
+
+    >>> stream.truncate(0)
+
+Mark the message as being another one::
+
+    >>> message.method_frame.delivery_tag = 3
+
+Register a subscription adapter that just fails::
+
+    >>> def failingSubscriber(message):
+    ...     raise AttributeError('Fake error')
+
+    >>> provideSubscriptionAdapter(
+    ...     failingSubscriber, [IDummyMessage], IArrivedMessage)
+
+Notify again new incoming message (this is normally called by the processor
+loop)::
+
+    >>> service.on_message_received(message)
+
+We read what happen thanks to the logging. And we see that our subscriber
+handled our message and failed. As the transaction was not commited the message
+is not acknowledged.
+
+    >>> print stream.getvalue()
+    Received message 3 sent to exchange SuperExchange with routing key X
+    Subscriber handling message <DummyAMQPMessage object at ...>
+    Error while handling message 3 sent to SuperExchange with routing key X
+    Fake error
+    Traceback (most recent call last):
+    ...

@@ -1,0 +1,42 @@
+Connection
+==========
+
+`BrokerConnection <#collective.zamqp.connection.BrokerConnection>`_ is an AMQP connection utility that enables connection to an AMQP server (aka message broker) via a specific virtual host.
+
+Its parameters depend on the broker configuration/setup. See `IBrokerConnection <#collective.zamqp.interfaces.IBrokerConnection>`_ attributes for the available parameters.
+
+To ease connection creation we also define a factory, see `IBrokerConnectionFactory <#collective.zamqp.interfaces.IBrokerConnectionFactory>`_
+
+Interfaces
+----------
+
+.. autointerface:: collective.zamqp.interfaces.IBrokerConnection
+    :show-inheritance:
+    :inherited-members:
+
+.. autointerface:: collective.zamqp.interfaces.IBrokerConnectionFactory
+    :members:
+    :show-inheritance:
+    :inherited-members:
+
+Implementation
+--------------
+
+.. module:: collective.zamqp.connection
+
+.. autoclass:: BrokerConnection
+    :members:
+    :show-inheritance:
+    :inherited-members:
+
+.. autoclass:: BrokerConnectionFactory
+    :members:
+    :show-inheritance:
+    :inherited-members:
+
+Example and Tests
+-----------------
+
+.. includedoc:: collective.zamqp.tests:/connection.txt
+
+

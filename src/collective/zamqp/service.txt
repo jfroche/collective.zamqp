@@ -1,0 +1,64 @@
+Consumer Service in Zope
+========================
+
+Service creation
+----------------
+
+Once a Zope instance is started, after instance initialization (ZServers startup, ZODB startup, zcml parsing ...) an event (`DatabaseOpenedWithRootEvent`) is trigerred.
+
+We have a subscriber that catch this event. At first it reads the the instance configuration (zope.conf) to see if there is any ampq connection defined.
+
+If there is an amqp connection defined, it creates a new thread with a *Processor* that connect to the specified amqp connection and which consume messages on exchange related to this connection. The thread is constantly waiting for new message.
+
+A processor has a list of worker threads, that's why we call it `MultiProcessor`. Once a message arrive in the *Processor* thread, it delegates processing of the message to one of these worker thread (`ConsumerProcessor`).
+
+Service Configuration
+---------------------
+
+In the Zope 2 configuration of an instance (zope.conf), there is a section called *product-config*. In this section you can define product specific configuration in the instance.
+
+The syntax is::
+
+    <product-config collective.zamqp>
+        CONNECTIONID SITEPATH@SERVICENAME
+    </product-config>
+
+The service will then create a *Processor* on the connection with id `CONNECTIONID` (see BrokerConnection).
+All new incoming messages will be notified by the site manager of the site which is on path `SITEPATH`.
+For logging purpose, the multiprocessor thread will be named as `SERVICENAME`.
+
+Here is how we define a new amqp broker connection to be used by the service::
+
+    <product-config collective.zamqp>
+      connection1 site1@fooService
+    </product-config>
+
+The `ConnectionBroker` utility named `connection1` has to be defined in zcml and at least one `Consumer` should exist for this connection.
+
+ZODB initialization event subscription
+--------------------------------------
+
+The ZODB initialization events are not really present by default in Zope 2. The package `five.dbevent` patch the correct code that enables us to plug our subscriber just after instance initialization.
+The subscriber is configured in configure.zcml::
+
+    <subscriber
+        for="zope.app.appsetup.interfaces.IDatabaseOpenedWithRootEvent"
+        handler=".service.bootStrapSubscriber"/>
+
+Processor thread
+----------------
+
+One *Processor* (see `MultiProcessor`) thread create a ConsumerSet (see `ConsumerSet`) on the broker connection id given by the configuration.
+Once the ConsumerSet is created, it waits for messages on the different Consumer queues. When a message arrive it create a `ConsumerWorker` thread
+that will consume the message and immediately returns waiting for new message.
+
+Message Consumer
+----------------
+
+The `ConsumerWorker` thread just take the message, register it into the ZODB transaction system and pass it to the zope event system. This allow loose coupling of components: as the message is marked with the Consumer interface, it allow us to create the corresponding subscribers for type of message coming from a queue.
+
+Example and Tests
+-----------------
+
+.. includedoc:: collective.zamqp.tests:/service.txt
+.. includedoc:: collective.zamqp.tests:/processor.txt

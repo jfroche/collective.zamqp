@@ -1,0 +1,33 @@
+Producer
+=========
+
+A `Producer <#collective.zamqp.consumer.Consumer>`_ is a component which connect to a queue and sends messages.
+
+The producer can be transaction aware which means that having a producer within a transaction, once a message is passed to the producer object, the message really gets send to the message broker when the transaction is correctly commited. Also, if for some reason the transaction is aborted, no message gets pushed into the queue.
+
+We also define a command line producer which is a little script that enable to push message from the command line shell.
+
+Interfaces
+----------
+
+.. autointerface:: collective.zamqp.interfaces.IProducer
+    :show-inheritance:
+    :inherited-members:
+
+Implementation
+--------------
+
+.. module:: collective.zamqp.producer
+
+.. autoclass:: Producer
+    :members:
+    :show-inheritance:
+    :inherited-members:
+
+
+Example and Tests
+-----------------
+
+.. includedoc:: collective.zamqp.tests:/producer.txt
+
+

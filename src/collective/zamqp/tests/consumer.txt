@@ -1,0 +1,115 @@
+Defining a Queue Consumer
+=========================
+
+A queue is always linked to one BrokerConnection. So we have to set it up
+first::
+
+    >>> from collective.zamqp.connection import BrokerConnection
+    >>> from collective.zamqp.interfaces import IBrokerConnection
+    >>> from zope.component import provideUtility
+    >>> conn = BrokerConnection()
+    >>> provideUtility(conn, IBrokerConnection, name='bar')
+
+Now that we have a BrokerConnection, we can define our consumer and link it to
+the connection::
+
+    >>> from collective.zamqp.consumer import Consumer
+    >>> class DummyConsumer(Consumer):
+    ...     connection_id = 'bar'
+    >>> consumer = DummyConsumer()
+    >>> consumer.connection_id
+    'bar'
+
+
+Consumer callbacks
+==================
+
+Once a message is received, the message:
+
+    1. is marked as providing the marker interface declared in the attribute
+       ``messageInterface``
+    2. is send to all registered callbacks.
+
+To be able to differentiate messages, we define a simple marker interface::
+
+    >>> from zope.interface import Interface
+    >>> class IBarMessage(Interface):
+    ...     "A marker interface for message coming from the bar consumer"
+
+So let's create a simple adapter that adds a timestamp to the incoming messages
+marked with IBarMessage::
+
+    >>> from zope.component import provideAdapter, adapts
+    >>> from datetime import datetime
+    >>> from collective.zamqp.message import Message
+    >>> class MessageWithTimeStamp(Message):
+    ...     adapts(IBarMessage)
+    ...
+    ...     @property
+    ...     def incomingDate(self):
+    ...         return datetime(2010, 1, 1)
+    >>> provideAdapter(MessageWithTimeStamp)
+
+We now define our consumer and specify correctly the messageInterface to use
+for all incoming messages::
+
+    >>> class DummyConsumer(Consumer):
+    ...     connection_id = 'bar'
+    ...     messageInterface = IBarMessage
+    ...     exclusive = True
+
+    >>> consumer = DummyConsumer()
+
+We create a dummy message which fake an incoming message coming from the broker::
+
+    >>> class Message(object):
+    ...     body = 'Hello from Message Broker'
+    >>> message = Message()
+
+The ``receive`` method on the consumer will call first the ``_markMessage``
+method which will add our marker interface on the incoming message::
+
+    >>> message = consumer._markMessage(message)
+    >>> IBarMessage.providedBy(message)
+    True
+
+Then the ``receive`` method will call the ``_adaptMessage`` method that can
+adapt our message::
+
+    >>> adaptedMessage = consumer._adaptMessage(message)
+    >>> adaptedMessage
+    <MessageWithTimeStamp object at ...>
+
+To be able to use the consumer we must define at least one callback otherwise
+we raise an exception::
+
+    >>> consumer.receive(message.body, message)
+    Traceback (most recent call last):
+    ...
+    NotImplementedError: No consumer callbacks registered
+
+So we define a dummy callback that print the message content::
+
+    >>> def printMessage(message_data, message):
+    ...     print '%s received on %s with body "%s"' % (message, message.incomingDate, message_data)
+    >>> consumer.register_callback(printMessage)
+
+Now each time a message is received, we adapt the message and print it::
+
+    >>> consumer.on_message_received(None, None, None, message.body)
+    <MessageWithTimeStamp object at ...> received on 2010-01-01 00:00:00 with body "Hello from Message Broker"
+
+
+Interface conformance
+=====================
+
+Using ``zope.interface`` to check wheter our implementation does what it
+promise to implement.
+
+    >>> from zope.interface.verify import verifyObject
+
+Check the Consumer::
+
+    >>> from collective.zamqp.interfaces import IConsumer
+    >>> verifyObject(IConsumer, DummyConsumer())
+    True
