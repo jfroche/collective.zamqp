@@ -1,45 +1,7 @@
 Changelog
 =========
 
-0.7 (unreleased)
-----------------
+0.7.0 (2012-02-05)
+------------------
 
-- Fix subscriber when config code is not present in zope config file
-
-
-0.6 (2011-06-14)
-----------------
-
-- Remove logging definition from code, should be in config file
-
-
-0.5 (2011-06-09)
-----------------
-
-- Also compatible with Zope 2.10/2.11
-
-
-0.4 (2011-06-09)
-----------------
-
-- Change transactionmanager order to be the very last one
-
-
-0.3 (2011-02-22)
-----------------
-
-- Fix for Zope 2.13
-
-
-0.2 (2010-10-19)
-----------------
-
-- Abort transaction correctly on error - send error to utility if available
-
-- Add multithreaded consumer (default to 1)
-
-
-0.1 (2010-03-20)
-----------------
-
-- Initial release
+- Internal development release.
