@@ -6,6 +6,7 @@
 #
 # Copyright (c) 2012 University of Jyväskylä
 ###
+from plone.memoize import view
 """ZConfig datatype support for AMQP Consuming Server"""
 
 
@@ -24,7 +25,10 @@ class BrokerConnectionFactory(object):
         self.heartbeat = section.heartbeat
         self.tx_select = section.tx_select
 
-        # Just in case, mimic ZServer.datatypes.ServerFactory
+        # generate ping-keepalive until heartbeat really works
+        self.keepalive = section.keepalive
+
+        # just in case, mimic ZServer.datatypes.ServerFactory
         self.ip = self.host = None
 
     def prepare(self, defaulthost='', dnsresolver=None,
@@ -50,6 +54,45 @@ class BrokerConnectionFactory(object):
                                       tx_select=self.tx_select)
 
         provideUtility(connection, IBrokerConnection, name=self.connection_id)
+
+        if self.keepalive:
+            # register a ping producer, a ping consumer, a ping view and a ping
+            # clock-server to keep the connection alive
+
+            from collective.zamqp.interfaces import IProducer, IConsumer
+            from collective.zamqp import keepalive
+
+            name = "%s.ping" % self.connection_id
+
+            # the producer
+            producer = keepalive.PingProducer(self.connection_id)
+            provideUtility(producer, IProducer, name=name)
+
+            # the consumer
+            consumer = keepalive.PingConsumer(self.connection_id)
+            provideUtility(consumer, IConsumer, name=name)
+
+            from zope.interface import Interface
+            from zope.component import provideAdapter
+
+            from OFS.interfaces import IApplication
+
+            # the view
+            ping = lambda context, request: lambda: keepalive.ping(name)
+            provideAdapter(ping, adapts=(IApplication, Interface),
+                           provides=Interface, name=name)
+
+            # the clock-server
+            from ZServer.AccessLogger import access_logger
+            from ZServer.ClockServer import ClockServer
+            clock = ClockServer(method="/%s" % name, period=60,
+                                host="localhost", logger=access_logger)
+
+            # just in case, store the created utilities, view and server
+            connection._keepalive = {"producer": producer,
+                                     "consumer": consumer,
+                                     "view": view,
+                                     "clock": clock}
 
         return connection
 

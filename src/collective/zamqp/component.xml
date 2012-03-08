@@ -43,6 +43,12 @@
        Use transactional AMQP channels, defaults to off.
        </description>
      </key>
+     <key name="keepalive" datatype="boolean" default="off">
+       <description>
+       Register producer, consumer, view and clock-server to keept the
+       connection alive.
+       </description>
+     </key>
   </sectiontype>
 
   <sectiontype name="amqp-consuming-server"
