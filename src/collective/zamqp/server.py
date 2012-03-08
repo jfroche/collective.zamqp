@@ -173,7 +173,9 @@ class ConsumingServer(object):
         self.consumers = []
         for name, consumerUtility in getUtilitiesFor(IConsumer):
             if consumerUtility.connection_id == self.connection_id:
-                self.consumers.append(consumerUtility.__class__())
+                kwargs = consumerUtility.__dict__.copy()  # instance properties
+                kwargs = dict(k for k in kwargs.items() if k[1] is not None)
+                self.consumers.append(consumerUtility.__class__(**kwargs))
                 # ^ to simplify consumer, all servers get their own instance
 
         self._connection = getUtility(IBrokerConnection,
