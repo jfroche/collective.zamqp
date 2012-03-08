@@ -17,23 +17,23 @@ Usage
     from collective.zamqp.keepalive import PingProducer, PingConsumer
 
     class Ping(PingProducer):
-        grok.name("my.app.ping")
-        connection_id = "my.app.amqp"
+        grok.name("myapp.ping")
+        connection_id = "myapp.amqp"
 
     class Pong(PingConsumer):
-        grok.name("my.app.pong")
-        connection_id = "my.app.amqp"
+        grok.name("myapp.pong")
+        connection_id = "myapp.amqp"
 
 2. Define view to send ping message::
 
     from collective.zamqp.keepalive import ping
 
     class PingView(grok.View):
-        grok.name("my-app-ping")
+        grok.name("myapp-ping")
         grok.context(IPloneSiteRoot)
         grok.require("zope.Public")
 
-        render = lambda self: ping("my.app.ping")
+        render = lambda self: ping("myapp.ping")
 
 3. Define Zope clock-server to call the view once per a minute::
 
@@ -72,6 +72,7 @@ class PingProducer(Producer):
         return '%s.ping' % self.connection_id
 
     exchange = 'collective.zamqp'
+    routing_key = property(get_queue, set_queue)
     queue = property(get_queue, set_queue)
     durable = False
 
