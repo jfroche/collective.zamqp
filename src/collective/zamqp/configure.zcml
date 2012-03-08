@@ -5,11 +5,11 @@
 
     <include package="grokcore.component" file="meta.zcml"/>
 
-    <grok:grok package=".connection"/>
     <grok:grok package=".serializers"/>
+    <grok:grok package=".message"/>
+    <grok:grok package=".connection"/>
     <grok:grok package=".producer"/>
     <grok:grok package=".consumer"/>
-    <grok:grok package=".message"/>
     <grok:grok package=".keepalive"/>
 
     <include package="zope.component" file="meta.zcml"/>
