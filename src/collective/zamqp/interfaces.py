@@ -60,8 +60,6 @@ class IProducer(Interface):
     connection_id = Attribute('The BrokerConnection id where the queue '
                               'is/will be registered')
 
-IPublisher = IProducer  # BBB
-
 
 class IConsumer(Interface):
     """
@@ -112,7 +110,7 @@ class IErrorHandler(Interface):
         consuming message
         """
 
-# BBB for collective.zamqp
+# BBB for affinitic.zamqp
 
 from zope.deprecation import deprecated
 

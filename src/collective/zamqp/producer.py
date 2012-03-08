@@ -243,7 +243,7 @@ class Producer(grok.GlobalUtility, VTM):
             self._tx_commit()  # minimal support for transactional channel
 
 
-# BBB for collective.zamqp
+# BBB for affinitic.zamqp
 
 from zope.deprecation import deprecated
 

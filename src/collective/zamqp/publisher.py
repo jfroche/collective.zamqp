@@ -8,7 +8,7 @@
 # Copyright (c) 2012 University of Jyväskylä
 ###
 
-# BBB for collective.zamqp
+# BBB for affinitic.zamqp
 
 from zope.deprecation import deprecated, moved
 

@@ -206,7 +206,7 @@ class BrokerConnection(grok.GlobalUtility):
         self._callbacks = CallbackManager()
         self._reconnection_delay = 1.0
 
-        # BBB for collective.zamqp
+        # BBB for affinitic.zamqp
         if getattr(self, 'userid', None):
             from zope.deprecation import deprecated
             self.username = self.userid

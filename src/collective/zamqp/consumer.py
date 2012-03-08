@@ -97,7 +97,7 @@ class Consumer(grok.GlobalUtility):
 
         self.marker = marker or self.marker
 
-        # BBB for collective.zamqp
+        # BBB for affinitic.zamqp
         if getattr(self, "messageInterface", None):
             from zope.deprecation import deprecated
             self.marker = self.messageInterface
