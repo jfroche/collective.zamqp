@@ -1,8 +1,15 @@
 Changelog
 =========
 
+0.7.2 (2012-03-08)
+------------------
 
-0.7.1 (2012-02-06)
+- Added *keepalive* option for AMQP Broker Connection -configuration in
+  zope.conf to auto-register all needed utilities, views and clock-servers for
+  keeping the connection alive with regular ping message.
+
+
+0.7.1 (2012-03-06)
 ------------------
 
 - Allowed new named AMQP Broker Connections to be defined in zope.conf
