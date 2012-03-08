@@ -45,7 +45,7 @@
      </key>
      <key name="keepalive" datatype="boolean" default="off">
        <description>
-       Register producer, consumer, view and clock-server to keept the
+       Register producer, consumer, view and clock-server to keep the
        connection alive.
        </description>
      </key>
