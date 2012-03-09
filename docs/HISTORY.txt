@@ -1,6 +1,14 @@
 Changelog
 =========
 
+0.7.3 (2012-03-09)
+------------------
+
+- Added a helper function ``collective.zamqp.utils.getBuildoutName`` to be
+  used in configuration re-usable packages using buildout-depending
+  AMQP-queues (e.g. for replies).
+
+
 0.7.2 (2012-03-08)
 ------------------
 
