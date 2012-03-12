@@ -46,20 +46,15 @@ Usage
 
 from grokcore import component as grok
 
-from zope.interface import Interface
 from zope.component import getUtility
 
 from collective.zamqp.producer import Producer
 from collective.zamqp.consumer import Consumer
-
-from collective.zamqp.interfaces import IProducer, IMessageArrivedEvent
+from collective.zamqp.interfaces import IProducer
+from collective.zamqp import utils
 
 import logging
 logger = logging.getLogger('collective.zamqp')
-
-
-class IPingMessage(Interface):
-    """Ping"""
 
 
 class PingProducer(Producer):
@@ -69,7 +64,7 @@ class PingProducer(Producer):
         pass
 
     def get_queue(self):
-        return '%s.ping' % self.connection_id
+        return '%s.%s.ping' % (utils.getBuildoutName(), self.connection_id)
 
     exchange = 'collective.zamqp'
     routing_key = property(get_queue, set_queue)
@@ -79,17 +74,21 @@ class PingProducer(Producer):
 
 class PingConsumer(Consumer):
     grok.baseclass()
-    marker = IPingMessage
 
     def set_queue(self, s):
         pass
 
     def get_queue(self):
-        return '%s.ping' % self.connection_id
+        return '%s.%s.ping' % (utils.getBuildoutName(), self.connection_id)
 
     queue = property(get_queue, set_queue)
     durable = False
-    auto_ack = True
+
+    def on_message_received(self, channel, method_frame, header_frame, body):
+        channel.basic_ack(delivery_tag=method_frame.delivery_tag)
+        if self._tx_select:
+            channel.tx_commit()  # min support for transactional channel
+        logger.info('....PONG')
 
 
 def ping(name):
@@ -97,8 +96,3 @@ def ping(name):
     producer._register()
     producer.publish('PING')
     logger.info('PING....')
-
-
-@grok.subscribe(IPingMessage, IMessageArrivedEvent)
-def pong(message, event):
-    logger.info('....PONG')
