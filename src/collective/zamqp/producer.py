@@ -205,7 +205,8 @@ class Producer(grok.GlobalUtility, VTM):
     def _basic_publish(self, **kwargs):
         retry_constructor = lambda func, kwargs: lambda: func(**kwargs)
 
-        if self._connection.is_open and getattr(self, '_channel', None):
+        if getattr(self._connection, "is_open", False)\
+            and getattr(self, '_channel', None):
             self._channel.basic_publish(**kwargs)
             return True
 
@@ -217,13 +218,15 @@ class Producer(grok.GlobalUtility, VTM):
             return False
 
     def _tx_commit(self):
-        if self._connection.is_open and getattr(self, '_channel', None):
+        if getattr(self._connection, "is_open", False)\
+            and getattr(self, '_channel', None):
             self._channel.tx_commit()
         else:
             logger.warning('No connection. Tx.Commit could not be sent.')
 
     def _tx_rollback(self):
-        if self._connection.is_open and getattr(self, '_channel', None):
+        if getattr(self._connection, "is_open", False)\
+            and getattr(self, '_channel', None):
             self._channel.tx_rollback()
         else:
             logger.warning('No connection. Tx.Rollback could not be sent.')
@@ -233,13 +236,13 @@ class Producer(grok.GlobalUtility, VTM):
 
     def _abort(self):
         self._threadlocal.pending_messages = None
-        if self._connection.tx_select:
+        if getattr(self._connection, "tx_select", False):
             self._tx_rollback()  # minimal support for transactional channel
 
     def _finish(self):
         while self._threadlocal.pending_messages:
             self._basic_publish(**self._threadlocal.pending_messages.pop())
-        if self._connection.tx_select:
+        if getattr(self._connection, "tx_select", False):
             self._tx_commit()  # minimal support for transactional channel
 
 
