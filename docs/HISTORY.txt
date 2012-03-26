@@ -1,11 +1,18 @@
 Changelog
 =========
 
+0.7.5 (2012-02-26)
+------------------
+
+- Minor fixes for being more *sauna.reload*-friendly.
+
+
 0.7.4 (2012-03-12)
 ------------------
 
 - Simplified Ping-consumer to ack messages and log ping directly withing
   asyncore loop without creating a fake HTTP-request.
+
 
 0.7.3 (2012-03-09)
 ------------------
