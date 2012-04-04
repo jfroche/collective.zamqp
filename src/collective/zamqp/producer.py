@@ -25,6 +25,8 @@ from pika.callback import CallbackManager
 import logging
 logger = logging.getLogger('collective.zamqp')
 
+threadlocal = threading.local()
+
 
 class Producer(grok.GlobalUtility, VTM):
     """Producer utility base class"""
@@ -58,8 +60,6 @@ class Producer(grok.GlobalUtility, VTM):
                  serializer=None):
 
         self._connection = None
-        self._threadlocal = threading.local()
-        self._threadlocal.pending_messages = None
 
         # Allow class variables to provide defaults
         self.connection_id = connection_id or self.connection_id
@@ -198,7 +198,7 @@ class Producer(grok.GlobalUtility, VTM):
         }
 
         if self.registered():
-            self._threadlocal.pending_messages.insert(0, msg)
+            self._pending_messages.insert(0, msg)
         elif self._basic_publish(**msg) and self._connection.tx_select:
             self._tx_commit()  # minimal support for transactional channel
 
@@ -232,18 +232,31 @@ class Producer(grok.GlobalUtility, VTM):
             logger.warning('No connection. Tx.Rollback could not be sent.')
 
     def _begin(self):
-        self._threadlocal.pending_messages = []
+        self._pending_messages = []
 
     def _abort(self):
-        self._threadlocal.pending_messages = None
+        self._pending_messages = None
         if getattr(self._connection, "tx_select", False):
             self._tx_rollback()  # minimal support for transactional channel
 
     def _finish(self):
-        while self._threadlocal.pending_messages:
-            self._basic_publish(**self._threadlocal.pending_messages.pop())
+        while self._pending_messages:
+            self._basic_publish(**self._pending_messages.pop())
         if getattr(self._connection, "tx_select", False):
             self._tx_commit()  # minimal support for transactional channel
+
+    def _get_pending_messages(self):
+        if hasattr(threadlocal, "collective_zamqp_pending_messages"):
+            return threadlocal.collective_zamqp_pending_messages.get(str(self))
+        else:
+            return None
+
+    def _set_pending_messages(self, value):
+        if not hasattr(threadlocal, "collective_zamqp_pending_messages"):
+            threadlocal.collective_zamqp_pending_messages = {}
+        threadlocal.collective_zamqp_pending_messages[str(self)] = value
+
+    _pending_messages = property(_get_pending_messages, _set_pending_messages)
 
 
 # BBB for affinitic.zamqp
