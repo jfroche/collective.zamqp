@@ -161,11 +161,7 @@ class Consumer(grok.GlobalUtility):
         queue = self.queue\
             or getattr(self, 'grokcore.component.directive.name', None)
         logger.info("Consumer ready to consume queue '%s'", queue)
-        try:
-            self._channel.basic_consume(self.on_message_received, queue=queue)
-        except Exception as e:
-            print e
-            import pdb; pdb.set_trace()
+        self._channel.basic_consume(self.on_message_received, queue=queue)
 
     def on_message_received(self, channel, method_frame, header_frame, body):
         message = createObject('AMQPMessage',
