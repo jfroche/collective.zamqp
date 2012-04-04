@@ -245,6 +245,32 @@ class Producer(grok.GlobalUtility, VTM):
         if getattr(self._connection, "tx_select", False):
             self._tx_commit()  # minimal support for transactional channel
 
+    def _get_v_registered(self):
+        if hasattr(threadlocal, "collective_zamqp_v_registered"):
+            return threadlocal.collective_zamqp_v_registered.get(str(self))
+        else:
+            return 0
+
+    def _set_v_registered(self, value):
+        if not hasattr(threadlocal, "collective_zamqp_v_registered"):
+            threadlocal.collective_zamqp_v_registered = {}
+        threadlocal.collective_zamqp_v_registered[str(self)] = value
+
+    _v_registered = property(_get_v_registered, _set_v_registered)
+
+    def _get_v_finalize(self):
+        if hasattr(threadlocal, "collective_zamqp_v_finalize"):
+            return threadlocal.collective_zamqp_v_finalize.get(str(self))
+        else:
+            return 0
+
+    def _set_v_finalize(self, value):
+        if not hasattr(threadlocal, "collective_zamqp_v_finalize"):
+            threadlocal.collective_zamqp_v_finalize = {}
+        threadlocal.collective_zamqp_v_finalize[str(self)] = value
+
+    _v_finalize = property(_get_v_finalize, _set_v_finalize)
+
     def _get_pending_messages(self):
         if hasattr(threadlocal, "collective_zamqp_pending_messages"):
             return threadlocal.collective_zamqp_pending_messages.get(str(self))
