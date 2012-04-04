@@ -211,7 +211,7 @@ class Producer(grok.GlobalUtility, VTM):
             return True
 
         elif self.durable:
-            logger.warning(('No connection. Durable message will be left to ',
+            logger.warning(('No connection. Durable message will be left to '
                             'wait for the new connection: %s'), kwargs)
             retry_callback = retry_constructor(self._basic_publish, kwargs)
             self._callbacks.add(0, '_on_ready_to_publish', retry_callback)
