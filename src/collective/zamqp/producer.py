@@ -152,7 +152,7 @@ class Producer(grok.GlobalUtility, VTM):
         self.on_ready_to_publish()
 
     def on_ready_to_publish(self):
-        logger.info(("Producer Ready to publish to exchange '%s' "
+        logger.info(("Producer ready to publish to exchange '%s' "
                      "with routing key '%s'"),
                     self.exchange, self.routing_key)
         self._callbacks.process(0, "_on_ready_to_publish", self)
