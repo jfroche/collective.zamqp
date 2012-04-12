@@ -62,7 +62,7 @@ class Message(object, VTM):
             content_type = getattr(self.header_frame, "content_type", None)
             util = queryUtility(ISerializer, name=content_type)
             if util:
-                self._deserializd_body =\
+                self._deserialized_body =\
                     util.deserialize(self._serialized_body)
         return self._deserialized_body or self._serialized_body
 
