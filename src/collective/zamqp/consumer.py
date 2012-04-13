@@ -243,7 +243,7 @@ class ConsumingView(BrowserView):
                     raise
 
         if not message.acknowledged:
-            logger.warning(("Nobody acknowledgd message '%s' sent to exchange "
+            logger.warning(("Nobody acknowledged message '%s' sent to exchange "
                             "exchange '%s' with routing key '%s'"),
                            delivery_tag, exchange, routing_key)
         else:
