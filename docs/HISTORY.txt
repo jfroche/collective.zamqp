@@ -1,6 +1,12 @@
 Changelog
 =========
 
+0.7.9 (2012-04-21)
+------------------
+
+- Modified keepalive-setting to accept an integer instead of boolean to
+  allow configuration of keepalive-ping-interval in detail.
+
 0.7.8 (2012-04-21)
 ------------------
 
