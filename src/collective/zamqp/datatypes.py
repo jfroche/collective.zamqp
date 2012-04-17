@@ -85,7 +85,7 @@ class BrokerConnectionFactory(object):
             # the clock-server
             from ZServer.AccessLogger import access_logger
             from ZServer.ClockServer import ClockServer
-            clock = ClockServer(method="/%s" % name, period=60,
+            clock = ClockServer(method="/%s" % name, period=self.keepalive,
                                 host="localhost", logger=access_logger)
 
             # just in case, store the created utilities, view and server

@@ -43,10 +43,10 @@
        Use transactional AMQP channels, defaults to off.
        </description>
      </key>
-     <key name="keepalive" datatype="boolean" default="off">
+     <key name="keepalive" datatype="integer" default="0">
        <description>
-       Register producer, consumer, view and clock-server to keep the
-       connection alive.
+       Register producer, consumer, view and clock-server with the given
+       integer timeout in seconds to keep the connection alive.
        </description>
      </key>
   </sectiontype>
