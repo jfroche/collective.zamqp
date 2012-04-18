@@ -23,6 +23,8 @@ from zope.event import notify
 
 from pika import PlainCredentials, ConnectionParameters
 from pika.adapters.asyncore_connection import\
+    AsyncoreDispatcher as AsyncoreDispatcherBase
+from pika.adapters.asyncore_connection import\
     AsyncoreConnection as AsyncoreConnectionBase
 from pika.callback import CallbackManager
 from pika.simplebuffer import SimpleBuffer
@@ -45,7 +47,7 @@ class AsyncoreScheduling(asyncore.dispatcher):
         self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
 
     def readable(self):
-        if time.time() > self.deadline:
+        if time.time() >= self.deadline:
             self.close()
             self.callback()
         return False
@@ -115,6 +117,14 @@ class LockingSimpleBuffer(SimpleBuffer):
             return super(LockingSimpleBuffer, self).flush()
 
 
+class AsyncoreDispatcher(AsyncoreDispatcherBase):
+    __doc__ = AsyncoreDispatcherBase.__doc__
+
+    def handle_read(self):
+        AsyncoreDispatcherBase.handle_read(self)
+        self._process_timeouts()
+
+
 class AsyncoreConnection(AsyncoreConnectionBase):
     __doc__ = AsyncoreConnectionBase.__doc__
 
@@ -123,6 +133,21 @@ class AsyncoreConnection(AsyncoreConnectionBase):
         super(AsyncoreConnection, self).__init__(
             parameters, on_open_callback, reconnection_strategy)
         self.lock = threading.Lock()
+
+    def _adapter_connect(self, host, port):
+        """
+        Connect to our RabbitMQ boker using AsyncoreDispatcher, then setting
+        Pika's suggested buffer size for socket reading and writing. We pass
+        the handle to self so that the AsyncoreDispatcher object can call back
+        into our various state methods.
+        """
+        self.ioloop = AsyncoreDispatcher(host, port)
+
+        # Map some core values for compatibility
+        self.ioloop._handle_error = self._handle_error
+        self.ioloop.connection = self
+        self.ioloop.suggested_buffer_size = self._suggested_buffer_size
+        self.socket = self.ioloop.socket
 
     def _send_method(self, channel_number, method, content=None):
         with self.lock:
@@ -220,9 +245,11 @@ class BrokerConnection(grok.GlobalUtility):
             self.username, self.password, erase_on_connect=False)
         parameters = ConnectionParameters(
             self.hostname, self.port, self.virtual_host,
-            credentials=credentials)
-            # heartbeat=self.heartbeat)
-        # FIXME: ^ heartbeat is buggy in pika 0.9.5
+            credentials=credentials,
+            heartbeat=self.heartbeat and True or False)
+        # AMQP-heartbeat timeout must be set manually due to bug in pika 0.9.5:
+        if parameters.heartbeat:
+            parameters.heartbeat = int(self.heartbeat)
         self._connection = AsyncoreConnection(
             parameters=parameters,
             on_open_callback=self.on_connect)
