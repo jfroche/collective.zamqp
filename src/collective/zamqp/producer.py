@@ -236,8 +236,6 @@ class Producer(grok.GlobalUtility, VTM):
 
     def _abort(self):
         self._pending_messages = None
-        if getattr(self._connection, "tx_select", False):
-            self._tx_rollback()  # minimal support for transactional channel
 
     def _finish(self):
         while self._pending_messages:
