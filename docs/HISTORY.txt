@@ -1,13 +1,21 @@
 Changelog
 =========
 
-0.7.9 (2012-04-21)
+
+0.7.10 (2012-04-18)
+-------------------
+
+- Fixed Pika-adapter to process timeouts to support AMQP-heartbeat.
+
+
+0.7.9 (2012-04-16)
 ------------------
 
 - Modified keepalive-setting to accept an integer instead of boolean to
   allow configuration of keepalive-ping-interval in detail.
 
-0.7.8 (2012-04-21)
+
+0.7.8 (2012-04-16)
 ------------------
 
 - Fixed issue where a typo in message de-serialization hide de-serialized body.
