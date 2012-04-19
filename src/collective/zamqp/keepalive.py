@@ -6,8 +6,10 @@ Licensed under the GPL license, see LICENCE.txt for more details.
 
 Copyright by University of Jyväskylä
 
-Base classes for registering ping to keep the connection alive (in
-environments, where firewalls close idle connections).
+Base classes for registering ping to keep the connection alive in environments,
+where firewalls close idle connections. In addition, ping causes enough socket
+traffic (for asyncore) to help re-connections on otherwise silent
+AMQP-dedicated zeo-clients.
 
 Usage
 -----
@@ -41,7 +43,7 @@ Usage
         method /mysite/@@my-app-ping
         period 60
         host localhost
-     </clock-server>
+    </clock-server>
 """
 
 from grokcore import component as grok
@@ -88,11 +90,11 @@ class PingConsumer(Consumer):
         channel.basic_ack(delivery_tag=method_frame.delivery_tag)
         if self._tx_select:
             channel.tx_commit()  # min support for transactional channel
-        logger.info('....PONG')
+        logger.debug('....PONG')
 
 
 def ping(name):
     producer = getUtility(IProducer, name=name)
     producer._register()
     producer.publish('PING')
-    logger.info('PING....')
+    logger.debug('PING....')
