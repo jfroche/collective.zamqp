@@ -301,7 +301,7 @@ class BeforeBrokerConnectEvent(object):
     implements(IBeforeBrokerConnectEvent)
 
 
-def connect_all(self):
+def connect_all(event=None):
     """Connect all connections, which have related utilities registered"""
 
     # Notify all, who want to register callbacks for connections

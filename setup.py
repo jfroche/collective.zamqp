@@ -49,4 +49,5 @@ setup(name='collective.zamqp',
           'grokcore.component',
           'pika == 0.9.5',
           'zope.deprecation',
+          'z3c.unconfigure',  # only for sauna.reload-support
           ])

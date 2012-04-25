@@ -1,0 +1,22 @@
+<configure xmlns="http://namespaces.zope.org/zope">
+
+    <include package="z3c.unconfigure" file="meta.zcml" />
+
+    <unconfigure>
+      <subscriber
+          for="zope.processlifetime.IProcessStarting"
+          handler=".connection.connect_all"
+          />
+    </unconfigure>
+
+    <subscriber
+        for="sauna.reload.interfaces.INewChildIsReady"
+        handler=".reload.connect_all_with_reload"
+        />
+
+    <subscriber
+        for="zope.processlifetime.IProcessStarting"
+        handler=".reload.connect_all_without_reload"
+        />
+
+</configure>
