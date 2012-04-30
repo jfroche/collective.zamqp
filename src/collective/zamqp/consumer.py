@@ -214,8 +214,8 @@ class security_manager:
 class ConsumingView(BrowserView):
 
     def __call__(self):
-        message = self.request.environ.get("AMQP_MESSAGE")
-        user_id = self.request.environ.get("AMQP_USER_ID")
+        message = self.request.environ.get('AMQP_MESSAGE')
+        user_id = self.request.environ.get('AMQP_USER_ID')
 
         exchange = message.method_frame.exchange
         routing_key = message.method_frame.routing_key

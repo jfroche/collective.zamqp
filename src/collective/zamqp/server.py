@@ -73,6 +73,8 @@ class AMQPRequest(HTTPRequest):
     interface"""
     implements(IConsumingRequest)
 
+    retry_max_count = 0
+
 
 class ConsumingServer(object):
     """AMQP Consuming Server"""
