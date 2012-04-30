@@ -2,6 +2,13 @@ Changelog
 =========
 
 
+0.7.13 (2012-04-30)
+-------------------
+
+- Fixed to requeue message when transaction of successful handling is aborted
+  (e.g. due to ZODB conflict error).
+
+
 0.7.12 (2012-04-25)
 -------------------
 
