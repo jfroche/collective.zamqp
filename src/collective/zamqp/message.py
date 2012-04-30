@@ -69,8 +69,8 @@ class Message(object, VTM):
     def ack(self):
         """Mark the message as acknowledge.
 
-        If the message is registered in a transaction, we defer transmition of
-        acknowledgement.
+        If the message is registered in a transaction, we defer the
+        transmission of acknowledgement.
 
         If the message is not registered in a transaction, we transmit
         acknowledgement immediately."""
