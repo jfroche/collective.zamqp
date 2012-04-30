@@ -92,12 +92,23 @@ class Message(object, VTM):
                     self.method_frame.delivery_tag, self.state)
 
     def _abort(self):
-        self.state = 'RECEIVED'
         self.acknowledged = False
 
-        # on transactional channel, rollback on abort
-        if self.channel and self.tx_select:
-            self.channel.tx_rollback()  # min support for transactional channel
+        if self.state != 'ABORTED':
+            self.state = 'ABORTED'
+
+            # on transactional channel, rollback on abort
+            if self.channel and self.tx_select:
+                self.channel.tx_rollback()  # min support for transactional
+                                            # channel
+
+            # reject message with requeue
+            self.channel.basic_reject(
+                delivery_tag=self.method_frame.delivery_tag, requeue=True)
+            logger.info("Transaction aborted. "
+                        "Requeued message '%s' (status = '%s')",
+                        self.method_frame.delivery_tag, self.state)
+
 
     def _finish(self):
         if self.acknowledged and not self.state == 'ACK':
