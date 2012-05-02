@@ -175,11 +175,18 @@ class ConsumingServer(object):
         self.consumers = []
         for name, consumerUtility in getUtilitiesFor(IConsumer):
             if consumerUtility.connection_id == self.connection_id:
-                self.consumers.append(consumerUtility)
-                # ^ Consumers are bound to connections similarly to
-                # consuming servers and there should be only one
-                # consuming server for a single connection. Therefore,
-                # each consumer should be taken only by one server.
+                # To support multiple sites (multiple consuming servers for
+                # a single connection) and still keep consumers simple, every
+                # consuming server must get own cloned instance of a consumer.
+                kwargs = consumerUtility.__dict__.copy() # instance properties
+                kwargs = dict(k for k in kwargs.items() if k[1] is not None)
+                # Substitute ${site_id} to support site specific queues.
+                subsitutable = ("queue", "routing_key")
+                for key in [k for k in subsitutable if k in kwargs]:
+                    value = kwargs[key].replace("${site_id}", self.site_id)
+                    kwargs[key] = value
+                # Clone the consumer.
+                self.consumers.append(consumerUtility.__class__(**kwargs))
 
         self._connection = getUtility(IBrokerConnection,
                                       name=self.connection_id)
