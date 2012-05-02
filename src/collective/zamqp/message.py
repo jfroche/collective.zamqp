@@ -102,6 +102,11 @@ class Message(object, VTM):
             if self.channel and self.tx_select:
                 self.channel.tx_rollback()  # min support for transactional
                                             # channel
+                # ^ XXX: Because the same channel may be shared by multiple
+                # threads, tx_rollback may be far from safe. It's supported
+                # only to make single-threaded AMQP-consuming ZEO-clients
+                # support transactional channel. DO NOT run multi-threaded
+                # consuming-server with transactional channel.
 
             # reject messages with requeue when ConflictError in ZPublisher
             exc_type, exc_value, exc_traceback = sys.exc_info()

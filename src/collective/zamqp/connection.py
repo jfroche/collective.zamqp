@@ -206,7 +206,9 @@ class BrokerConnection(grok.GlobalUtility):
     password = 'guest'
 
     heartbeat = 0
-    tx_select = False
+    tx_select = False  # Be aware, that rollback for transactional channel
+                       # is safe to use (and tx_select useful) only on
+                       # dedicated single-threaded AMQP-consuming ZEO-clients.
 
     def __init__(self, connection_id=None, hostname=None, port=None,
                  virtual_host=None, username=None, password=None,
