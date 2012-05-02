@@ -21,8 +21,13 @@ from ZODB.POSException import ConflictError
 
 from zope.interface import alsoProvides
 from zope.component import createObject, queryUtility
-from zope.component.hooks import getSite
 from zope.event import notify
+
+try:
+    from zope.component.hooks import getSite
+    getSite  # pyflakes
+except ImportError:  # BBB
+    from zope.site.hooks import getSite
 
 from Products.Five.browser import BrowserView
 
