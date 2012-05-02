@@ -230,6 +230,7 @@ class ConsumingView(BrowserView):
                 logger.error(("Conflict while working on message '%s' "
                               "(status = '%s')"),
                              self.delivery_tag, self.message.state)
+                message.state = "ERROR"
                 raise
             except:
                 exc_type, exc_value, exc_traceback = sys.exc_info()
@@ -240,6 +241,7 @@ class ConsumingView(BrowserView):
                     logger.error(("Error while handling message '%s' sent to "
                                   "exchange '%s' with routing key '%s'"),
                                  delivery_tag, exchange, routing_key)
+                    message.state = "ERROR"
                     raise
 
         if not message.acknowledged:
