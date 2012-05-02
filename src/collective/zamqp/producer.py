@@ -224,13 +224,6 @@ class Producer(grok.GlobalUtility, VTM):
         else:
             logger.warning('No connection. Tx.Commit could not be sent.')
 
-    def _tx_rollback(self):
-        if getattr(self._connection, "is_open", False)\
-            and getattr(self, '_channel', None):
-            self._channel.tx_rollback()
-        else:
-            logger.warning('No connection. Tx.Rollback could not be sent.')
-
     def _begin(self):
         self._pending_messages = []
 
