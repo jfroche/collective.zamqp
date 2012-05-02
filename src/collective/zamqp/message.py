@@ -9,7 +9,11 @@
 ###
 """Transaction aware AMQP message wrapper"""
 
+import sys
+
 import grokcore.component as grok
+
+from ZODB.POSException import ConflictError
 
 from zope.interface import implements, implementedBy
 from zope.component import IFactory, queryUtility
@@ -93,22 +97,26 @@ class Message(object, VTM):
 
     def _abort(self):
         self.acknowledged = False
-
-        if self.state != 'ABORTED':
-            self.state = 'ABORTED'
-
+        if self.state not in ('ERROR', 'REQUEUED'):
             # on transactional channel, rollback on abort
             if self.channel and self.tx_select:
                 self.channel.tx_rollback()  # min support for transactional
                                             # channel
 
-            # reject message with requeue
-            self.channel.basic_reject(
-                delivery_tag=self.method_frame.delivery_tag, requeue=True)
-            logger.info("Transaction aborted. "
-                        "Requeued message '%s' (status = '%s')",
-                        self.method_frame.delivery_tag, self.state)
+            # reject messages with requeue when ConflictError in ZPublisher
+            exc_type, exc_value, exc_traceback = sys.exc_info()
+            if self.state != 'ERROR' and exc_type == ConflictError:
+                # reject message with requeue
+                self.channel.basic_reject(
+                    delivery_tag=self.method_frame.delivery_tag, requeue=True)
+                self.state = "REQUEUED"
 
+                logger.info("Transaction aborted due to database conflict. "
+                            "Requeued message '%s' (status = '%s')",
+                            self.method_frame.delivery_tag, self.state)
+            # otherwise, message handling has failed and un-acknowledged
+            else:
+                self.state = 'ERROR'
 
     def _finish(self):
         if self.acknowledged and not self.state == 'ACK':
