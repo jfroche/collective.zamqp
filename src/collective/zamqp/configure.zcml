@@ -20,7 +20,11 @@
         handler=".connection.connect_all"
         />
 
-    <include package="zope.browserpage" file="meta.zcml"/>
+    <include package="zope.browserpage" file="meta.zcml"
+             zcml:condition="installed zope.browserpage" />
+
+    <include package="Products.Five.browser" file="meta.zcml"
+             zcml:condition="not-installed zope.browserpage" />
 
     <browser:page
         name="zamqp-consumer" for="*"
