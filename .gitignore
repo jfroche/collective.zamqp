@@ -1,0 +1,17 @@
+syntax:glob
+.hgignore
+*.egg-info
+*.pyc
+dist
+
+.installed.cfg
+.mr.developer.cfg
+develop-eggs
+coverage
+docs
+eggs
+parts
+var
+bin
+
+.DS_Store
