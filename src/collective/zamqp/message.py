@@ -37,7 +37,12 @@ class Message(object, VTM):
     channel = None
     tx_select = False
 
-    state = None
+    state = None  # 'RECEIVED' is received and may be partially handled
+                  # 'ACK' is received, handled and acknowledged
+                  # 'REQUEUED' is requeued because of ConflictError
+                  # 'ERROR' is received, but handling has ended with error
+                  # 'FAILED' is received, but handling has failed;
+                  #          message is left unacknowledged
     acknowledged = None
 
     _serialized_body = None
@@ -97,7 +102,7 @@ class Message(object, VTM):
 
     def _abort(self):
         self.acknowledged = False
-        if self.state not in ('ERROR', 'REQUEUED'):
+        if self.state not in ('FAILED', 'REQUEUED'):
             # on transactional channel, rollback on abort
             if self.channel and self.tx_select:
                 self.channel.tx_rollback()  # min support for transactional
@@ -121,7 +126,7 @@ class Message(object, VTM):
                             self.method_frame.delivery_tag, self.state)
             # otherwise, message handling has failed and un-acknowledged
             else:
-                self.state = 'ERROR'
+                self.state = 'FAILED'
 
     def _finish(self):
         if self.acknowledged and not self.state == 'ACK':
