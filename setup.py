@@ -1,5 +1,4 @@
 from setuptools import setup, find_packages
-import os
 
 version = '0.7.14'
 
@@ -7,18 +6,18 @@ setup(name='collective.zamqp',
       version=version,
       description="AMQP consumer and producer integration for Zope2",
       long_description=open("README.txt").read() + "\n" +
-                       open(os.path.join("docs", "HISTORY.txt")).read(),
+                       open("HISTORY.txt").read(),
       classifiers=[
-        "Operating System :: OS Independent",
-        "Intended Audience :: Developers",
-        "Topic :: Communications",
-        "Topic :: System :: Distributed Computing",
-        "Programming Language :: Python",
-        ],
+          "Operating System :: OS Independent",
+          "Intended Audience :: Developers",
+          "Topic :: Communications",
+          "Topic :: System :: Distributed Computing",
+          "Programming Language :: Python",
+      ],
       keywords='',
       author='Asko Soukka',
       author_email='asko.soukka@iki.fi',
-      url='',
+      url='http://github.com/datakurre/collective.zamqp',
       license='ZPL',
       packages=find_packages('src', exclude=['ez_setup']),
       package_dir={'': 'src'},
@@ -26,17 +25,19 @@ setup(name='collective.zamqp',
       include_package_data=True,
       zip_safe=False,
       entry_points={
-            'console_scripts': [
-                  'publishmsg = collective.zamqp.cli:main']},
-      extras_require=dict(
-            test=['zope.testing', 'Zope2', 'five.dbevent'],
-            zope210=['five.dbevent', 'uuid', 'python-cjson'],
-            zope212=['five.dbevent', 'Zope2'],
-            zope213=['Zope2'],
-            docs=['z3c.recipe.sphinxdoc',
-                  'collective.sphinx.includechangelog',
-                  'repoze.sphinx.autointerface',
-                  'collective.sphinx.includedoc']),
+          'console_scripts': ['publishmsg = collective.zamqp.cli:main']
+      },
+      extras_require={
+          'test': [
+            'zope.testing',
+            ],
+          'docs': [
+            'sphinx',
+            'collective.sphinx.includedoc',
+            'repoze.sphinx.autointerface',
+            'sphinxcontrib-plantuml',
+            ]
+      },
       install_requires=[
           'setuptools',
           'Zope2',
