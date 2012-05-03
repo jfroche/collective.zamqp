@@ -5,7 +5,7 @@ version = '0.7.14'
 setup(name='collective.zamqp',
       version=version,
       description="AMQP consumer and producer integration for Zope2",
-      long_description=open("README.txt").read() + "\n" +
+      long_description=open("README.rst").read() + "\n" +
                        open("HISTORY.txt").read(),
       classifiers=[
           "Operating System :: OS Independent",
