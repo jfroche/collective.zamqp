@@ -28,10 +28,12 @@ Usage
 
 2. Define view to send ping message::
 
+    from Products.CMFPlone.interfaces import IPloneSiteRoot
+
     from collective.zamqp.keepalive import ping
 
     class PingView(grok.View):
-        grok.name("myapp-ping")
+        grok.name("myapp.ping")
         grok.context(IPloneSiteRoot)
         grok.require("zope.Public")
 
@@ -53,20 +55,25 @@ from zope.component import getUtility
 from collective.zamqp.producer import Producer
 from collective.zamqp.consumer import Consumer
 from collective.zamqp.interfaces import IProducer
-from collective.zamqp import utils
 
 import logging
 logger = logging.getLogger('collective.zamqp')
 
 
 class PingProducer(Producer):
+    """An example ping-message producer base class, which:
+
+    1) declares transient *direct* exchange *collective.zamqp*
+    2) declares transient queue *collective.zamqp.connection_id*
+    3) bind queue to exchange by its name."""
+
     grok.baseclass()
 
     def set_queue(self, s):
         pass
 
     def get_queue(self):
-        return '%s.%s.ping' % (utils.getBuildoutName(), self.connection_id)
+        return 'collective.zamqp.%s' % self.connection_id
 
     exchange = 'collective.zamqp'
     routing_key = property(get_queue, set_queue)
@@ -76,13 +83,18 @@ class PingProducer(Producer):
 
 
 class PingConsumer(Consumer):
+    """An example ping-consumer base class, which:
+
+    1) declares transient queue *collective.zamqp.connection_id*
+    2) consumes and acks all ping-messages with minimal effort."""
+
     grok.baseclass()
 
     def set_queue(self, s):
         pass
 
     def get_queue(self):
-        return '%s.%s.ping' % (utils.getBuildoutName(), self.connection_id)
+        return 'collective.zamqp.%s' % self.connection_id
 
     queue = property(get_queue, set_queue)
     durable = False
