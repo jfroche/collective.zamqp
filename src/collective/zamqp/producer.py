@@ -51,7 +51,7 @@ class Producer(grok.GlobalUtility, VTM):
     auto_declare = True
 
     reply_to = None
-    serializer = 'text/plain'
+    serializer = 'pickle'
 
     def __init__(self, connection_id=None, exchange=None, routing_key=None,
                  durable=None, exchange_type=None, exchange_durable=None,
@@ -186,7 +186,7 @@ class Producer(grok.GlobalUtility, VTM):
         properties = BasicProperties(
             content_type=content_type, content_encoding=content_encoding,
             headers=headers, delivery_mode=delivery_mode, priority=priority,
-            correlation_id=correlation_id, reply_to=reply_to,
+            correlation_id=str(correlation_id), reply_to=reply_to,
             expiration=expiration, message_id=message_id, timestamp=timestamp,
             type=type, user_id=user_id, app_id=app_id, cluster_id=cluster_id)
 
