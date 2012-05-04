@@ -1,6 +1,6 @@
 from setuptools import setup, find_packages
 
-version = '0.7.14'
+version = '0.7.15'
 
 setup(name='collective.zamqp',
       version=version,
