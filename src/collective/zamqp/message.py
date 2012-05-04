@@ -132,12 +132,6 @@ class Message(object, VTM):
         if self.acknowledged and not self.state == 'ACK':
             self._ack()
 
-    def __getattr__(self, name):
-        if hasattr(self.__class__, name):
-            return object.__getattribute__(self, name)
-        else:
-            return getattr(self.body, name)
-
     def sortKey(self, *ignored):
         return '~zamqp 9'  # always be the last one!
 
