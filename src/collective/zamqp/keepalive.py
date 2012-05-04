@@ -85,7 +85,6 @@ class PingConsumer(Consumer):
         return '%s.%s.ping' % (utils.getBuildoutName(), self.connection_id)
 
     queue = property(get_queue, set_queue)
-    serializer = 'text/plain'
     durable = False
 
     def on_message_received(self, channel, method_frame, header_frame, body):
