@@ -6,16 +6,14 @@ collective.zamqp
 Contents:
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 3
 
-.. uml::
+   introduction
 
-   foo --> bar
-
-Indices and tables
-==================
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
+.. Indices and tables
+.. ==================
+..
+.. * :ref:`genindex`
+.. * :ref:`modindex`
+.. * :ref:`search`
 

@@ -71,6 +71,7 @@ class PingProducer(Producer):
     exchange = 'collective.zamqp'
     routing_key = property(get_queue, set_queue)
     queue = property(get_queue, set_queue)
+    serializer = 'text/plain'
     durable = False
 
 
