@@ -16,8 +16,9 @@ Therefore AMQP-messages are handled (by default) in a similar environment to
 regular HTTP-request: ZCA-hooks, events and everything else behaving normally.
 
 TODO:
-- rewrite documentation to reflect the new design
-- update affinitic.zamqp's tests for the new design
+
+* rewrite documentation to reflect the new design
+* update affinitic.zamqp's tests for the new design
 
 While we are still documenting and testing this, you may take a look at
 `collective.zamqpdemo <http://github.com/datakurre/collective.zamqpdemo/>`_
