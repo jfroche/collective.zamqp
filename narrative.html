@@ -1,0 +1,507 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>RabbitMQ:n käyttö ja integrointi &mdash; collective.zamqp 0.7.16 documentation</title>
+    
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '',
+        VERSION:     '0.7.16',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="top" title="collective.zamqp 0.7.16 documentation" href="index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li><a href="index.html">collective.zamqp 0.7.16 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="rabbitmq-n-kaytto-ja-integrointi">
+<h1>RabbitMQ:n käyttö ja integrointi<a class="headerlink" href="#rabbitmq-n-kaytto-ja-integrointi" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="rabbitmq-n-asennus">
+<h2>RabbitMQ:n asennus<a class="headerlink" href="#rabbitmq-n-asennus" title="Permalink to this headline">¶</a></h2>
+<p>RabbitMQ-palvelin on helppo asentaa kehitystä varten (jopa) samaan buildoutiin
+Plonen kanssa. Buildout onnistuu reseptillä <a class="reference external" href="http://pypi.python.org/pypi/rod.recipe.rabbitmq/2.0.0">rod.recipe.rabbitmq</a>.</p>
+<p>Pelkästään RabbitMQ:n asentava <tt class="docutils literal"><span class="pre">buildout.cfg</span></tt> näyttää tältä:</p>
+<div class="highlight-python"><pre>[buildout]
+parts = erlang rabbitmq
+
+[erlang]
+recipe = zc.recipe.cmmi
+url = http://www.erlang.org/download/otp_src_R13B02-1.tar.gz
+
+[rabbitmq]
+recipe = rod.recipe.rabbitmq
+erlang-path = ${erlang:location}/bin
+url = http://www.rabbitmq.com/releases/rabbitmq-server/v2.2.0/rabbitmq-server-2.2.0.tar.gz</pre>
+</div>
+<p>Buildoutin jälkeen RabbitMQ:n käynnistetään komennoilla:</p>
+<div class="highlight-python"><pre>source bin/rabbitmq-env  # korjaa RabbitMQ:n ympäristömuuttujat
+bin/rabbitmq-server</pre>
+</div>
+</div>
+<div class="section" id="rabbitmq-n-kaytto">
+<h2>RabbitMQ:n käyttö<a class="headerlink" href="#rabbitmq-n-kaytto" title="Permalink to this headline">¶</a></h2>
+<p>Käynnistettyä RabbitMQ-palvelinta hyppyytetään <a class="reference external" href="http://www.rabbitmq.com/man/rabbitmqctl.1.man.html">rabbitmqctl</a>-komennolla.</p>
+<p>Kehitystyön aluksi palvelimelle täytyy yleensä</p>
+<ol class="arabic simple">
+<li>luoda oma nimiavaruus (<em>virtual_host</em>)</li>
+<li>luoda oma käyttäjä</li>
+<li>myöntää omalle käyttäjälle riittävät oikeudet nimiavaruuteen</li>
+</ol>
+</div>
+<div class="section" id="plone-integraatio">
+<h2>Plone-integraatio<a class="headerlink" href="#plone-integraatio" title="Permalink to this headline">¶</a></h2>
+<p>AMQP-viestijonojen käyttö Plonessa tapahtuu <tt class="docutils literal"><span class="pre">collective.zamqp</span></tt>-lisäosalla
+(lisäosa on yliopiston jatkokehittämä versio <tt class="docutils literal"><span class="pre">affinitic.zamqp</span></tt>-lisäosasta).</p>
+<div class="section" id="riippuvuudet">
+<h3>Riippuvuudet<a class="headerlink" href="#riippuvuudet" title="Permalink to this headline">¶</a></h3>
+<p>Aloita kehitystyö määrittämällä oma viestijonoja tarvitseva lisäosasi
+riippumaan <tt class="docutils literal"><span class="pre">collective.zamqp</span></tt>-lisäosasta.</p>
+<p>Lisäksi tarvitset riippuvuudeksi <tt class="docutils literal"><span class="pre">five.grok</span></tt>:n, jotta määrittämäsi tuottajat
+(<em>producers</em>) ja kuluttajat (<em>consumers</em>) rekisteröityisivät automaattisesti
+Zopen ajonaikaiseen komponenttirekisteriin.</p>
+<p>Jos haluat käyttää viestien sisällössä <a class="reference external" href="http://msgpack.org/">msgpack</a>-serialisointia, lisää
+riippuvuuksien listaan myös <tt class="docutils literal"><span class="pre">msgpack-python</span></tt> (<em>msgpack</em>-serialisointia
+tuetaan automaattisesti vain, jos se on itse määritetty riippuvuudeksi).</p>
+<p>Lisäosasi <tt class="docutils literal"><span class="pre">setup.py</span></tt>:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="n">install_requires</span><span class="o">=</span><span class="p">[</span>
+   <span class="c"># ...</span>
+   <span class="s">&quot;five.grok&quot;</span><span class="p">,</span>
+   <span class="s">&quot;collective.zamqp&quot;</span><span class="p">,</span>
+   <span class="s">&quot;msgpack-python&quot;</span><span class="p">,</span>
+<span class="p">],</span>
+</pre></div>
+</div>
+<p>Lisäosasi <tt class="docutils literal"><span class="pre">configure.zcml</span></tt>:</p>
+<div class="highlight-python"><pre>&lt;configure xmlns="http://namespaces.zope.org/zope"
+           xmlns:grok="http://namespaces.zope.org/grok"&gt;
+
+    &lt;includeDependencies package="." /&gt;
+    &lt;grok:grok package="." /&gt;
+
+&lt;/configure&gt;</pre>
+</div>
+</div>
+<div class="section" id="tuottaja-producer">
+<h3>Tuottaja (producer)<a class="headerlink" href="#tuottaja-producer" title="Permalink to this headline">¶</a></h3>
+<p>Viestien tuottaja määritellään perimällä oma tuottaja <tt class="docutils literal"><span class="pre">collective.zamqp</span></tt>:n
+perusluokasta ja määrittämällä sille vähintään <em>nimi</em>, <em>viestien kohdevaihde</em>
+ja käytettävän <em>yhteyden tunniste</em> (samanniminen yhteys määritetään
+myöhemmin):</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="kn">from</span> <span class="nn">five</span> <span class="kn">import</span> <span class="n">grok</span>
+<span class="kn">from</span> <span class="nn">collective.zamqp.producer</span> <span class="kn">import</span> <span class="n">Producer</span>
+
+
+<span class="k">class</span> <span class="nc">MyProducer</span><span class="p">(</span><span class="n">Producer</span><span class="p">):</span>
+    <span class="n">grok</span><span class="o">.</span><span class="n">name</span><span class="p">(</span><span class="s">&quot;my_routing_key&quot;</span><span class="p">)</span>
+
+    <span class="n">connection_id</span> <span class="o">=</span> <span class="s">&quot;my_amqp_connection&quot;</span>
+    <span class="n">exchange</span> <span class="o">=</span> <span class="s">&quot;my_exchange&quot;</span>
+</pre></div>
+</div>
+<p>Oletuksena tuottaja lähettämiensä viestien reititysavaimena omaa nimeään, mutta
+reititysavaimen voi määrittää myös itse:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="o">...</span> <span class="n">routing_key</span> <span class="o">=</span> <span class="s">&quot;my_routing_key&quot;</span>
+</pre></div>
+</div>
+<p>Oletuksena tuottajan lähettämät viestit määritellään säilymään palvelimella
+uudelleenkäynnistyksen yli, mutta tämän voi estää määrittämällä itse:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="o">...</span> <span class="n">durable</span> <span class="o">=</span> <span class="bp">False</span>
+</pre></div>
+</div>
+<p>Oletuksena tuottaja varmistaa, että välittäjäpalvelimella on tuottajan
+tiedoissa määritetty vaihde, mutta myös tämän voi estää määrittämällä itse:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="o">...</span> <span class="n">auto_declare</span> <span class="o">=</span> <span class="bp">False</span>
+</pre></div>
+</div>
+<p>Muita mielenkiintoisia ja tuottajan määrittelyssä muutettavia oletuksia ovat:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="o">...</span> <span class="n">exchange_type</span> <span class="o">=</span> <span class="s">&#39;direct&#39;</span>
+<span class="o">...</span> <span class="n">exchange_durable</span> <span class="o">=</span> <span class="bp">None</span>  <span class="c"># oletuksena sama kuin durable (ks. yllä)</span>
+
+<span class="o">...</span> <span class="n">queue</span> <span class="o">=</span> <span class="bp">None</span>  <span class="c"># kun halutaan määrittää palvelimelle myös jono</span>
+<span class="o">...</span> <span class="n">queue_durable</span> <span class="o">=</span> <span class="bp">None</span>
+<span class="o">...</span> <span class="n">queue_exclusive</span> <span class="o">=</span> <span class="bp">False</span>
+<span class="o">...</span> <span class="n">queue_arguments</span> <span class="o">=</span> <span class="p">{}</span>
+
+<span class="o">...</span> <span class="n">reply_to</span> <span class="o">=</span> <span class="bp">None</span>
+<span class="o">...</span> <span class="n">serializer</span> <span class="o">=</span> <span class="s">&#39;text&#39;</span>  <span class="c"># esim. &#39;pickle&#39; tai &#39;msgpack&#39;</span>
+</pre></div>
+</div>
+<p>Viestin lähetys omasta lisäosasta tapahtuu pyytäällä komponenttirekisteristä
+nimetty tuottaja, rekisteröimällä viesti(t) lähtemään vasta onnistuneen
+transaktion päätteeksi (tai ilman rekisteröintiä välittömästi), ja lähettämällä
+viesti tuottajan <tt class="docutils literal"><span class="pre">publish</span></tt>-metodilla:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="n">producer</span> <span class="o">=</span> <span class="n">getUtility</span><span class="p">(</span><span class="n">IProducer</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s">&quot;my_routing_key&quot;</span><span class="p">)</span>
+<span class="n">producer</span><span class="o">.</span><span class="n">_register</span><span class="p">()</span>  <span class="c"># register for transaction</span>
+<span class="n">producer</span><span class="o">.</span><span class="n">publish</span><span class="p">(</span><span class="s">&quot;Hello Consumer!&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Lähetyksessä voi antaa viestin lisäksi nimettyjä parametreja, joista
+tärkeimmät ovat</p>
+<dl class="docutils">
+<dt>routing_key</dt>
+<dd>Viestikohtainen reititysavain, jos ei haluta käyttää tuottajan
+määrittelyssä käytettyä reititysavainta.</dd>
+<dt>correlation_id</dt>
+<dd>Viestikohtainen tunniste, jonka viestin vastaanottavan kuluttajan tulee
+liittää mukaan mahdolliseen vastausviestiin.</dd>
+<dt>reply_to</dt>
+<dd>Viestikohtainen palautusavain, jonka mukaan viestin käsittelevän kuluttajan
+tulee reitittää mahdollinen vastausviesti.</dd>
+<dt>serializer</dt>
+<dd>Viestin serialisointitapa, jos se eroaa tuottajan määrittelyssä käytetystä
+serialisoinnista. <tt class="docutils literal"><span class="pre">collective.zamqp</span></tt> tukee valmiiksi ainakin arvoja
+<em>text</em>, <em>pickle</em> ja <em>msgpack</em> (jos <em>msgpack-python</em> on käytettävissä).
+Tuettuja serialisointeja voi tarvittaessa myös määritellä lisää (ks.
+<tt class="docutils literal"><span class="pre">collective.zamqp.serializers</span></tt>).</dd>
+<dt>content_type</dt>
+<dd>Viestin muodon kertova otsikkotieto (esim. <tt class="docutils literal"><span class="pre">application/pdf</span></tt>), jota
+käytetään silloin, kun serialisointia ei käytetä (<tt class="docutils literal"><span class="pre">serialization=None</span></tt>;
+esimerkiksi binaaritiedostoja lähetettäessä).</dd>
+</dl>
+<p>Jos tuottaja olisi määritetty käyttämään <em>msgpack</em>-serialisointia,
+rakenteellisen (<tt class="docutils literal"><span class="pre">&lt;dict&gt;</span></tt>-muotoisen) viestin lähetys onnistuisi seuraavasti:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="n">producer</span><span class="o">.</span><span class="n">publish</span><span class="p">({</span><span class="s">&quot;Subject&quot;</span><span class="p">:</span> <span class="s">&quot;Hello Consumer!&quot;</span><span class="p">})</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="kuluttaja-consumer">
+<h3>Kuluttaja (consumer)<a class="headerlink" href="#kuluttaja-consumer" title="Permalink to this headline">¶</a></h3>
+<p>Viestien kuluttaja määritellään perimällä oma kuluttaja <tt class="docutils literal"><span class="pre">collective.zamqp</span></tt>:n
+perusluokasta ja määrittämällä sille vähintään <em>nimi</em>, käytettävän <em>yhteyden
+tunniste</em> (yhteys määritetään myöhemmin) ja <em>leima</em> (<em>marker interface</em>), jonka
+perusteella vastaanotetut viestit käsitellään:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="kn">from</span> <span class="nn">five</span> <span class="kn">import</span> <span class="n">grok</span>
+
+<span class="kn">from</span> <span class="nn">zope.interface</span> <span class="kn">import</span> <span class="n">Interface</span>
+<span class="kn">from</span> <span class="nn">collective.zamqp.consumer</span> <span class="kn">import</span> <span class="n">Consumer</span>
+
+
+<span class="k">class</span> <span class="nc">IMyMessage</span><span class="p">(</span><span class="n">Interface</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Marker interface for messages received by MyConsumer&quot;&quot;&quot;</span>
+
+
+<span class="k">class</span> <span class="nc">MyConsumer</span><span class="p">(</span><span class="n">Consumer</span><span class="p">):</span>
+    <span class="n">grok</span><span class="o">.</span><span class="n">name</span><span class="p">(</span><span class="s">&quot;my_queue&quot;</span><span class="p">)</span>
+
+    <span class="n">connection_id</span> <span class="o">=</span> <span class="s">&quot;my_amqp_connection&quot;</span>
+    <span class="n">marker</span> <span class="o">=</span> <span class="n">IMyMessage</span>
+</pre></div>
+</div>
+<p>Oletuksena kuluttaja olettaa kulutettavan jonon löytyvän välittäjäpalvelimelta,
+mutta kuluttaja osaa myös määrittää jonon automaattisesti, kunhan sille
+määritellään vähintään jonoon viestit reitittävän vaihteen nimi:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="o">...</span> <span class="n">exchange</span> <span class="o">=</span> <span class="s">&quot;my_exchange&quot;</span>
+</pre></div>
+</div>
+<p>Tällöin kuluttaja määrittää vaihteen, jonon (käyttäen jonon nimenä oletuksena
+omaa nimeään) ja sitoo (<em>bind</em>) jonon nimellä reititettävät viestit
+lähetettäväksi kuluttamaansa jonoon.</p>
+<p>Kuluttajan oletuksia ja käyttäytymistä voi määrittää tarkemmin muokkaamalla
+seuraavia oletuksia:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="o">...</span> <span class="n">routing_key</span> <span class="o">=</span> <span class="bp">None</span>
+<span class="o">...</span> <span class="n">durable</span> <span class="o">=</span> <span class="bp">True</span>
+
+<span class="o">...</span> <span class="n">exchange_type</span> <span class="o">=</span> <span class="s">&#39;direct&#39;</span>
+<span class="o">...</span> <span class="n">exchange_durable</span> <span class="o">=</span> <span class="bp">None</span>
+
+<span class="o">...</span> <span class="n">queue</span> <span class="o">=</span> <span class="bp">None</span>
+<span class="o">...</span> <span class="n">queue_durable</span> <span class="o">=</span> <span class="bp">None</span>
+<span class="o">...</span> <span class="n">queue_exclusive</span> <span class="o">=</span> <span class="bp">False</span>
+<span class="o">...</span> <span class="n">queue_arguments</span> <span class="o">=</span> <span class="p">{}</span>
+
+<span class="o">...</span> <span class="n">auto_declare</span> <span class="o">=</span> <span class="bp">True</span>
+
+<span class="o">...</span> <span class="n">auto_ack</span> <span class="o">=</span> <span class="bp">False</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="tilaaja-subscriber">
+<h3>Tilaaja (subscriber)<a class="headerlink" href="#tilaaja-subscriber" title="Permalink to this headline">¶</a></h3>
+<p>Kuluttaja ei itse käsittele viestejä, vaan ainoastaan vastaanottaa ne, leimaa
+ne ja lähettää ne eteenpäin laukaisemalla Zopessa <em>IObjectEvent</em>-määrityksen
+mukaisen <em>IMessageArrivedEvent</em>-tapahtuman.</p>
+<p>Näin kuluttajan vastaanottamat ja tapahtumana edelleen jakamat viestit voi
+tilata omassa lisäosassaan esimerkiksi seuraavasti:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="kn">from</span> <span class="nn">collective.zamqp.interfaces</span> <span class="kn">import</span> <span class="n">IMessageArrivedEvent</span>
+
+
+<span class="nd">@grok.subscribe</span><span class="p">(</span><span class="n">IMyMessage</span><span class="p">,</span> <span class="n">IMessageArrivedEvent</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">handleMessage</span><span class="p">(</span><span class="n">message</span><span class="p">,</span> <span class="n">event</span><span class="p">):</span>
+
+    <span class="kn">import</span> <span class="nn">logging</span>
+    <span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">()</span>
+    <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;I got a new message&quot;</span><span class="p">,</span> <span class="n">message</span><span class="p">)</span>
+
+    <span class="n">message</span><span class="o">.</span><span class="n">ack</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>Huomaa, että viestinkäsittelyn aikana ympäristö vastaa täysin tavallisen
+HTTP-pyynnön ympäristöä. Näin käsittely tapahtuu Zopen transaktion <em>sisällä</em>,
+ja käsittelyn päätteeksi tapahtuu <tt class="docutils literal"><span class="pre">transaction.commit</span></tt>.</p>
+<p>Näin tilaaja voi esimerkiksi pyytää komponenttirekisteristä tuottajan ja
+lähettää uusia viestejä.  Viestinkäsittely tapahtuu Zopen transaktiossa
+tavallisen HTTP-pyynnön tapaan.</p>
+<p>Oletuksena <em>aktiivisena käyttäjänä</em> viestinkäsittelyn aikana on tunnistamaton
+<em>Anonymous User</em>-erikoiskäyttäjä (mutta käyttäjän voi määrittää tarkemmin
+myöhemmin).</p>
+<p>Ellei kuluttajalle ole määritetty <tt class="docutils literal"><span class="pre">auto_ack</span> <span class="pre">=</span> <span class="pre">True</span></tt>, viesti täytyy erikseen
+kuitata käsitellyksi <tt class="docutils literal"><span class="pre">message.ack()</span></tt>-kutsulla. Muutoin välittäjä (<em>broker</em>)
+toimittaa saman viestin myöhemmin uudelleen.</p>
+<p>Viestiltä löytyvät ominaisuudet ovat</p>
+<dl class="docutils">
+<dt>method_frame</dt>
+<dd>viestin välitystiedot</dd>
+<dt>header_frame</dt>
+<dd>viestin otsikkotiedot</dd>
+<dt>body</dt>
+<dd>viestin sisältö joko sellaisenaan tai purettuna, jos viesti tunnistetaan
+serialisoiduksi ja sen purkaminen on tuettu (viestin serialisointi
+päätellään <tt class="docutils literal"><span class="pre">content_type</span></tt>-otsikkotiedosta).</dd>
+</dl>
+</div>
+<div class="section" id="kulutus-ilman-tilaajaa">
+<h3>Kulutus ilman tilaajaa<a class="headerlink" href="#kulutus-ilman-tilaajaa" title="Permalink to this headline">¶</a></h3>
+<p>Jos viestinkäsittely ei edellytä yhteyttä tietokantaan ja viestit voidaan
+käsitellä poikkeuksetta hyvin lyhyessä ajassa, on viestit mahdollista käsitellä
+suoraan kuluttajassa ylikirjoittamalla kuluttajan luokkamäärityksessä
+viestinkäsittelymetodi esimerkiksi seuraavasti:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="k">class</span> <span class="nc">MyConsumer</span><span class="p">(</span><span class="n">Consumer</span><span class="p">):</span>
+    <span class="o">...</span>
+
+    <span class="k">def</span> <span class="nf">on_message_received</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">channel</span><span class="p">,</span> <span class="n">method_frame</span><span class="p">,</span> <span class="n">header_frame</span><span class="p">,</span> <span class="n">body</span><span class="p">):</span>
+        <span class="n">channel</span><span class="o">.</span><span class="n">basic_ack</span><span class="p">(</span><span class="n">delivery_tag</span><span class="o">=</span><span class="n">method_frame</span><span class="o">.</span><span class="n">delivery_tag</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tx_select</span><span class="p">:</span>
+            <span class="n">channel</span><span class="o">.</span><span class="n">tx_commit</span><span class="p">()</span>  <span class="c"># min support for transactional channel</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s">&quot;Acknowledged msg #&#39;</span><span class="si">%s</span><span class="s">&#39;.&quot;</span> <span class="o">%</span> <span class="n">method</span><span class="o">.</span><span class="n">frame</span><span class="o">.</span><span class="n">delivery_tag</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Kun viestit käsitellää edelläkuvatun esimerkin mukaisesti:</p>
+<ol class="arabic simple">
+<li>viestit täytyy kuitata Pikan APIn mukaisesti (ks. esimerkki), koska
+kutsu omalle käsittelymetodille tulee suoraan Pikalta</li>
+<li>transaktionaalisen kanavan edellyttävä commit täytyy tarkistaa ja suorittaa
+itse (yhteyden transaktionaalisuus on tallennettu kuluttajaan totuusarvona
+nimellä <tt class="docutils literal"><span class="pre">_tx_select</span></tt> (ks. esimerkki)</li>
+<li>kuluttajalle ei tarvitse määrittää <tt class="docutils literal"><span class="pre">marker</span></tt>-tietoa.</li>
+</ol>
+<p>Myöhemmin kuvattavien <em>ping</em>-viestien kulutus on toteutettu edellä esitetyn
+esimerkin mukaisesti.</p>
+</div>
+<div class="section" id="yhteys">
+<h3>Yhteys<a class="headerlink" href="#yhteys" title="Permalink to this headline">¶</a></h3>
+<p>Tuottajat ja kuluttujat määritetään aina jollekin nimetylle AMQP-yhteydelle.
+Nämä yhtedet voidaan määrittää joko lisäosan koodissa tai buildoutissa.</p>
+<p>Yhteys määritetään buildoutissa laajentamalla Plonen-konfiguroinnissa käytetyn
+reseptin tuottamaa <tt class="docutils literal"><span class="pre">zope.conf</span></tt>-tiedostoa seuraavasti:</p>
+<div class="highlight-python"><pre>[instance]
+recipe = plone.recipe.zope2instance
+...
+zope-conf-additional +=
+     %import collective.zamqp
+     &lt;amqp-broker-connection&gt;
+        connection_id my_amqp_connection
+        hostname localhost
+        port 5672
+        virtual_host /my_virtualhost
+        username my_username
+        password my_password
+        keepalive on
+    &lt;/amqp-broker-connection&gt;</pre>
+</div>
+<p>Yhteyksiä voi määrittää tarvittavan määrän yksinkertaisesti toistamalla
+<tt class="docutils literal"><span class="pre">&lt;amqp-broker-connection/&gt;</span></tt>-elementtiä tarvittava määrä. Huomaa, että
+yhteydet täytyy nimetä (<em>connection_id</em>) ainutkertaisesti. Lisäksi yhteyden voi
+määrittää transaktioita käyttäväksi asetusrivillä <tt class="docutils literal"><span class="pre">tx_select</span> <span class="pre">on</span></tt>.</p>
+</div>
+<div class="section" id="kuluttajapalvelu">
+<h3>Kuluttajapalvelu<a class="headerlink" href="#kuluttajapalvelu" title="Permalink to this headline">¶</a></h3>
+<p>Viestien lähettämiseen riittää pelkkä tuottajien ja yhteyksien määrittäminen,
+mutta viestien kuluttaminen edellyttää lisäksi yhteyskohtaisen
+kuluttajapalvelun (<em>AMQP Consuming Server</em>) määrittämistä:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="o">...</span>  <span class="o">&lt;</span><span class="n">amqp</span><span class="o">-</span><span class="n">consuming</span><span class="o">-</span><span class="n">server</span><span class="o">&gt;</span>
+<span class="o">...</span>     <span class="n">connection_id</span> <span class="n">my_amqp_connection</span>
+<span class="o">...</span>     <span class="n">site_id</span> <span class="n">Plone</span>
+<span class="o">...</span>  <span class="o">&lt;/</span><span class="n">amqp</span><span class="o">-</span><span class="n">consuming</span><span class="o">-</span><span class="n">server</span><span class="o">&gt;</span>
+</pre></div>
+</div>
+<p>Kuluttajapalveluita voi määrittää tarvittavan määrän toistamalla
+<tt class="docutils literal"><span class="pre">&lt;amqp-consumer-server/&gt;</span></tt>-elementtiä, mutta korkeintaan yksi per nimetty
+yhteys. Esimerkissä näkyvien asetusten lisäksi kuluttajapalvelulle voi
+määrittää käyttäjän (esim. <em>admin</em>), jonka nimissä viestit käsitellään:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="o">...</span>     <span class="n">user_id</span> <span class="n">admin</span>
+<span class="o">...</span>  <span class="o">&lt;/</span><span class="n">amqp</span><span class="o">-</span><span class="n">consuming</span><span class="o">-</span><span class="n">server</span><span class="o">&gt;</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="ping">
+<h3>Ping<a class="headerlink" href="#ping" title="Permalink to this headline">¶</a></h3>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">Versiosta <tt class="docutils literal"><span class="pre">collective.zamqp</span> <span class="pre">&gt;=</span> <span class="pre">0.7.2</span></tt> lähtien kaiken allaolevan on
+voinut määrittää automaattisesti lisäämällä <tt class="docutils literal"><span class="pre">&lt;amqp-broker-connection/&gt;</span></tt>:n
+asetuksiin <tt class="docutils literal"><span class="pre">keepalive</span> <span class="pre">on</span></tt>.</p>
+</div>
+<p>Jotta palomuuri ei katkaisisi hiljaista AMQP-yhteyttä, sitä täytyy pitää
+hereillä joko AMQP:n heartbeat -palvelulla tai lähettämällä tasaisin väliajoin
+yhteyttä auki pitäviä ping-viestejä (<tt class="docutils literal"><span class="pre">collective.zamqp.keepalive</span></tt> sisältää
+pohjaluokat ping-toiminnon määrittämisessä).</p>
+<p>Koska AMQP:n heartbeat ei vielä toimi luotettavasti <tt class="docutils literal"><span class="pre">collective.zamqp</span></tt>:n
+kanssa (<tt class="docutils literal"><span class="pre">pika</span> <span class="pre">==</span> <span class="pre">0.9.5</span></tt>), täytyy jokaista yhteyttä kohden määrittää</p>
+<ol class="arabic">
+<li><p class="first">yksi ping-tuottaja:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="kn">from</span> <span class="nn">zope.interface</span> <span class="kn">import</span> <span class="n">Interface</span>
+<span class="kn">from</span> <span class="nn">collective.zamqp</span> <span class="kn">import</span> <span class="n">keepalive</span>
+
+
+<span class="k">class</span> <span class="nc">PingProducer</span><span class="p">(</span><span class="n">keepalive</span><span class="o">.</span><span class="n">PingProducer</span><span class="p">):</span>
+    <span class="n">grok</span><span class="o">.</span><span class="n">name</span><span class="p">(</span><span class="s">&quot;my_amqp_ping&quot;</span><span class="p">)</span>
+    <span class="n">connection_id</span> <span class="o">=</span> <span class="s">&quot;my_amqp_connection&quot;</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first">yksi ping-kuluttaja:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="k">class</span> <span class="nc">PingConsumer</span><span class="p">(</span><span class="n">keepalive</span><span class="o">.</span><span class="n">PingConsumer</span><span class="p">):</span>
+    <span class="n">grok</span><span class="o">.</span><span class="n">name</span><span class="p">(</span><span class="s">&quot;my_amqp_ping&quot;</span><span class="p">)</span>
+    <span class="n">connection_id</span> <span class="o">=</span> <span class="s">&quot;my_amqp_connection&quot;</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first">näkymä, joka lähettää ping-viestin:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="k">class</span> <span class="nc">PingView</span><span class="p">(</span><span class="n">grok</span><span class="o">.</span><span class="n">View</span><span class="p">):</span>
+    <span class="n">grok</span><span class="o">.</span><span class="n">name</span><span class="p">(</span><span class="s">&quot;my-amqp-ping&quot;</span><span class="p">)</span>
+    <span class="n">grok</span><span class="o">.</span><span class="n">context</span><span class="p">(</span><span class="n">OFS</span><span class="o">.</span><span class="n">IApplication</span><span class="p">)</span>
+    <span class="n">grok</span><span class="o">.</span><span class="n">require</span><span class="p">(</span><span class="s">&quot;zope.Public&quot;</span><span class="p">)</span>
+
+    <span class="n">render</span> <span class="o">=</span> <span class="k">lambda</span> <span class="bp">self</span><span class="p">:</span> <span class="n">keepalive</span><span class="o">.</span><span class="n">ping</span><span class="p">(</span><span class="s">&quot;my_amqp_ping&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</li>
+<li><p class="first">ajastus buildoutin <tt class="docutils literal"><span class="pre">zope-conf-additional</span> <span class="pre">=+</span></tt>-asetuksessa:</p>
+<div class="highlight-python"><pre>... &lt;clock-server&gt;
+...     method /@@my-amqp-ping
+...     period 60
+...     host localhost
+... &lt;/clock-server&gt;</pre>
+</div>
+</li>
+</ol>
+</div>
+</div>
+<div class="section" id="brokerin-debuggaus">
+<h2>Brokerin debuggaus<a class="headerlink" href="#brokerin-debuggaus" title="Permalink to this headline">¶</a></h2>
+<p>Brokeria on mahdollista hallita rajallisesti etäyhteydellä käyttäen Celeryn
+mukana tulevaa <a class="reference external" href="http://docs.celeryproject.org/en/latest/userguide/routing.html#hands-on-with-the-api">camqadm</a>-työkalua.</p>
+<ol class="arabic">
+<li><p class="first">Tee uusi virtualenv:</p>
+<div class="highlight-python"><pre>virtualenv amqpcli</pre>
+</div>
+</li>
+<li><p class="first">Aktivoi:</p>
+<div class="highlight-python"><pre>source amqpcli/activate</pre>
+</div>
+</li>
+<li><p class="first">Asenna Celery:</p>
+<div class="highlight-python"><pre>pip install celery</pre>
+</div>
+</li>
+<li><p class="first">Käynnistä AMQP-konsoli:</p>
+<div class="highlight-python"><pre>camqadm --broker=amqp://username:password@hostname:5672//virtualhost</pre>
+</div>
+</li>
+</ol>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">RabbitMQ:n käyttö ja integrointi</a><ul>
+<li><a class="reference internal" href="#rabbitmq-n-asennus">RabbitMQ:n asennus</a></li>
+<li><a class="reference internal" href="#rabbitmq-n-kaytto">RabbitMQ:n käyttö</a></li>
+<li><a class="reference internal" href="#plone-integraatio">Plone-integraatio</a><ul>
+<li><a class="reference internal" href="#riippuvuudet">Riippuvuudet</a></li>
+<li><a class="reference internal" href="#tuottaja-producer">Tuottaja (producer)</a></li>
+<li><a class="reference internal" href="#kuluttaja-consumer">Kuluttaja (consumer)</a></li>
+<li><a class="reference internal" href="#tilaaja-subscriber">Tilaaja (subscriber)</a></li>
+<li><a class="reference internal" href="#kulutus-ilman-tilaajaa">Kulutus ilman tilaajaa</a></li>
+<li><a class="reference internal" href="#yhteys">Yhteys</a></li>
+<li><a class="reference internal" href="#kuluttajapalvelu">Kuluttajapalvelu</a></li>
+<li><a class="reference internal" href="#ping">Ping</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#brokerin-debuggaus">Brokerin debuggaus</a></li>
+</ul>
+</li>
+</ul>
+
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="_sources/narrative.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li><a href="index.html">collective.zamqp 0.7.16 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2012, Asko Soukka &lt;asko.soukka@iki.fi&gt;.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.1.3.
+    </div>
+  </body>
+</html>

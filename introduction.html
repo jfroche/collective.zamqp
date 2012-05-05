@@ -1,0 +1,239 @@
+
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Introduction &mdash; collective.zamqp 0.7.16 documentation</title>
+    
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '',
+        VERSION:     '0.7.16',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="top" title="collective.zamqp 0.7.16 documentation" href="index.html" />
+    <link rel="prev" title="collective.zamqp" href="index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="index.html" title="collective.zamqp"
+             accesskey="P">previous</a> |</li>
+        <li><a href="index.html">collective.zamqp 0.7.16 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="introduction">
+<h1>Introduction<a class="headerlink" href="#introduction" title="Permalink to this headline">¶</a></h1>
+<p>This package is an almost complete rewrite of
+<a class="reference external" href="http://pypi.python.org/pypi/affinitic.zamqp">affinitic.zamqp</a>,
+but preserves its ideas on how to setup AMQP-services
+by configuring only producers and consumers.</p>
+<p><strong>collective.zamqp</strong> acts as a <em>Zope Server</em> by co-opting Zope&#8217;s asyncore
+mainloop (using asyncore-supporting AMQP-library
+<a class="reference external" href="http://pypi.python.org/pypi/pika">pika</a>),
+and injecting consumed messages as <em>request</em> for Zope&#8217;s ZPublisher
+(exactly like Zope ClockServer does).</p>
+<p>Therefore AMQP-messages are handled (by default) in a similar environment to
+regular HTTP-request: ZCA-hooks, events and everything else behaving normally.</p>
+<div class="section" id="why-amqp">
+<h2>Why AMQP?<a class="headerlink" href="#why-amqp" title="Permalink to this headline">¶</a></h2>
+<p>From <a class="reference external" href="http://en.wikipedia.org/wiki/AMQP">Wikipedia</a>:</p>
+<blockquote>
+<div>The <strong>Advanced Message Queueing Protocol</strong> (AMQP) is
+an open standard application protocol
+for message-oriented middleware.
+The defining features of AMQP are
+message orientation, queuing, routing
+(including point-to-point and publish-and-subscribe),
+reliability and security.</div></blockquote>
+<p>To be able to use AMQP, you usually need to setup
+a separate message broker server, like <a class="reference external" href="http://www.rabbitmq.com">RabbitMQ</a>.</p>
+<p>Why is it worth of the effort?</p>
+<ul class="simple">
+<li>You may delay long-processing task to be completed asynchronously.</li>
+<li>You may replace synchronous RPC-calls with asynchronous messaging.</li>
+<li>Zope (especially ZODB) is not great in concurrent writes.
+With AMQP, the related tasks could be queued and processed consecutively
+by a dedicated single threaded ZEO-client.</li>
+<li>You have more options on how to integrate your services.</li>
+<li>Separate broker server makes it easy to
+<a class="reference external" href="http://www.youtube.com/watch?v=CAak2ayFcV0">monitor what&#8217;s happening with your servcies</a>.</li>
+<li>Add more good reasons here...</li>
+</ul>
+<p>Using this package, your AMQP-setup could look like this:</p>
+<p class="plantuml">
+<img src="_images/plantuml-9173518b48519ac138c494305a41176224cf2aec.png" alt="Package &quot;Zope/Plone Site A&quot; {
+    [ZEO Server] as ZEO1
+    [HTTP Client] as HTTP1
+    [HTTP Client] as HTTP2
+    [AMQP Client] as AMQP1
+
+    ZEO1 -down- HTTP1
+    ZEO1 -down- HTTP2
+    ZEO1 -down- AMQP1
+}
+
+Package &quot;Zope/Plone Site B&quot; {
+    [ZEO Server] as ZEO2
+    [HTTP Client] as HTTP3
+    [HTTP Client] as HTTP4
+    [AMQP Client] as AMQP2
+
+    ZEO2 -up- HTTP3
+    ZEO2 -up- HTTP4
+    ZEO2 -up- AMQP2
+}
+
+Package &quot;Broker Server&quot; {
+    [RabbitMQ]
+}
+
+Package &quot;Other Service&quot; {
+    [Service]
+}
+
+HTTP1 .down.&gt; [RabbitMQ]
+HTTP2 .down.&gt; [RabbitMQ]
+AMQP1 .down.&gt; [RabbitMQ]
+[RabbitMQ] .up.&gt; AMQP1
+
+HTTP3 .up.&gt; [RabbitMQ]
+HTTP4 .up.&gt; [RabbitMQ]
+AMQP2 .up.&gt; [RabbitMQ]
+[RabbitMQ] .down.&gt; AMQP2
+
+[RabbitMQ] .right.&gt; [Service]
+[Service] .left.&gt; [RabbitMQ]" />
+</p>
+<p>Asynchronous RPC-like AMQP-messaging between your site and an external service
+may look like this:</p>
+<p class="plantuml">
+<img src="_images/plantuml-98b8b14d48be21c318f7a6977ce6ec311c2d7757.png" alt="site -&gt; broker: request
+activate broker
+
+note left
+    exchange=service.tasks
+    routing_key=service.my_template
+    content_type=application/x-msgpack
+    body={&quot;title&quot;: &quot;Hello World!&quot;}
+    correlation_id=UUID
+    reply_to=my_queue
+end note
+
+broker -&gt; service: request
+deactivate broker
+activate service
+
+note left
+    content_type=application/x-msgpack
+    body={&quot;title&quot;: &quot;Hello World!&quot;}
+    correlation_id=UUID
+    reply_to=my_queue
+end note
+
+service --&gt; broker: response
+deactivate service
+activate broker
+
+note right
+    exchange=service.results
+    content_type=application/pdf
+    body=%PDF-1.4...
+    correlation_id=UUID
+    routing_key=my_queue
+end note
+
+broker --&gt; site: response
+deactivate broker
+
+note right
+    content_type=application/pdf
+    body=%PDF-1.4...
+    correlation_id=UUID
+end note" />
+</p>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Introduction</a><ul>
+<li><a class="reference internal" href="#why-amqp">Why AMQP?</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="index.html"
+                        title="previous chapter">collective.zamqp</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="_sources/introduction.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="index.html" title="collective.zamqp"
+             >previous</a> |</li>
+        <li><a href="index.html">collective.zamqp 0.7.16 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2012, Asko Soukka &lt;asko.soukka@iki.fi&gt;.
+      Created using <a href="http://sphinx.pocoo.org/">Sphinx</a> 1.1.3.
+    </div>
+  </body>
+</html>
