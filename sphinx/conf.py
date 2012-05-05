@@ -28,3 +28,8 @@ extensions = [
     'sphinxcontrib.plantuml',
     'sphinxtogithub',
     ]
+
+html_static_path = [
+    '_static'
+    ]
+html_style = 'custom.css'
