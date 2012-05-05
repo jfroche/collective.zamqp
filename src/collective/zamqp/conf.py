@@ -25,5 +25,6 @@ version = release = package.version
 extensions = [
     'collective.sphinx.includedoc',
     'repoze.sphinx.autointerface',
-    'sphinxcontrib.plantuml'
+    'sphinxcontrib.plantuml',
+    'sphinxtogithub',
     ]

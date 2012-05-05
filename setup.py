@@ -29,14 +29,15 @@ setup(name='collective.zamqp',
       },
       extras_require={
           'test': [
-            'zope.testing',
-            ],
+              'zope.testing',
+          ],
           'docs': [
-            'sphinx',
-            'collective.sphinx.includedoc',
-            'repoze.sphinx.autointerface',
-            'sphinxcontrib-plantuml',
-            ]
+              'sphinx',
+              'collective.sphinx.includedoc',
+              'repoze.sphinx.autointerface',
+              'sphinxcontrib-plantuml',
+              'sphinxtogithub',
+          ]
       },
       install_requires=[
           'setuptools',
