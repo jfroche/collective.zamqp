@@ -49,11 +49,14 @@
             
   <div class="section" id="collective-zamqp">
 <h1>collective.zamqp<a class="headerlink" href="#collective-zamqp" title="Permalink to this headline">¶</a></h1>
-<p><em>AMQP consumer and producer integration for Zope2</em></p>
+<p><em>AMQP consumer and producer integration for Zope2 (e.g. Plone)</em></p>
 <p class="plantuml">
-<img src="images/plantuml-1147cec1b9e6995798f9ed38dfb7018afc677721.png" alt="[Site] as Site1
+<img src="images/plantuml-b211b5fadd622699bbefa7b5bc3f8685df0f22ae.png" alt="skinparam monochrome true
+
+[Site] as Site1
 [Site] as Site2
 [Service] as Service1
+[Service] as Service2
 [Broker] as Broker
 
 Site1 .right.&gt; Broker
@@ -63,20 +66,29 @@ Site2 .down.&gt; Broker
 Broker .up.&gt; Site2
 
 Broker .right.&gt; Service1
-Service1 .left.&gt; Broker" />
+Service1 .left.&gt; Broker
+
+Broker .down.&gt; Service2
+Service2 .up.&gt; Broker" />
 </p>
-<p>Contents:</p>
+<p><strong>collective.zamqp</strong> acts as a <em>Zope Server</em> by co-opting Zope&#8217;s asyncore
+mainloop (using asyncore-supporting AMQP-library
+<a class="reference external" href="http://pypi.python.org/pypi/pika">pika</a>),
+and injecting consumed messages as <em>requests</em> to be handled by ZPublisher
+(exactly like Zope ClockServer).</p>
+<p>Therefore AMQP-messages are handled (by default) in a similar environment to
+regular HTTP-requests: ZCA-hooks, events and everything else behaving normally.</p>
+<p>This package is an almost complete rewrite of
+<a class="reference external" href="http://pypi.python.org/pypi/affinitic.zamqp">affinitic.zamqp</a>,
+but preserves its ideas on how to setup AMQP-messaging
+by configuring only producers and consumers.</p>
 <div class="toctree-wrapper compound">
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="introduction.html">Introduction</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="introduction.html#why-amqp">Why AMQP?</a></li>
-</ul>
-</li>
+<li class="toctree-l1"><a class="reference internal" href="introduction.html">Introduction</a></li>
 </ul>
 </div>
-<p>While we are still documenting and testing this, you may take a look at
-<a class="reference external" href="http://github.com/datakurre/collective.zamqpdemo/">collective.zamqpdemo</a>
-for an example of use.</p>
+<p>While we are still documenting and testing <strong>collective.zamqp</strong>,
+you may want to take a look at at <a class="reference external" href="http://github.com/datakurre/collective.zamqpdemo/">collective.zamqpdemo</a> for an example of use.</p>
 </div>
 
 

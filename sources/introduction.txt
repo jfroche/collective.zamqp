@@ -1,24 +1,6 @@
 Introduction
 ============
 
-This package is an almost complete rewrite of
-`affinitic.zamqp <http://pypi.python.org/pypi/affinitic.zamqp>`_,
-but preserves its ideas on how to setup AMQP-services
-by configuring only producers and consumers.
-
-**collective.zamqp** acts as a *Zope Server* by co-opting Zope's asyncore
-mainloop (using asyncore-supporting AMQP-library
-`pika <http://pypi.python.org/pypi/pika>`_),
-and injecting consumed messages as *request* for Zope's ZPublisher
-(exactly like Zope ClockServer does).
-
-Therefore AMQP-messages are handled (by default) in a similar environment to
-regular HTTP-request: ZCA-hooks, events and everything else behaving normally.
-
-
-Why AMQP?
----------
-
 From `Wikipedia <http://en.wikipedia.org/wiki/AMQP>`_:
 
     The **Advanced Message Queueing Protocol** (AMQP) is
@@ -39,37 +21,37 @@ Why is it worth of the effort?
 * You may replace synchronous RPC-calls with asynchronous messaging.
 
 * Zope (especially ZODB) is not great in concurrent writes.
-  With AMQP, the related tasks could be queued and processed consecutively
+  Using AMQP-messaging those tasks could be queued and processed consecutively
   by a dedicated single threaded ZEO-client.
 
-* You have more options on how to integrate your services.
+* You have more options on how to build integration between your services.
 
-* Separate broker server makes it easy to
+* A separate broker server makes it easy to
   `monitor what's happening with your servcies
   <http://www.youtube.com/watch?v=CAak2ayFcV0>`_.
-
-* Add more good reasons here...
 
 Using this package, your AMQP-setup could look like this:
 
 .. uml::
 
-   Package "Zope/Plone Site A" {
+   skinparam monochrome true
+
+   Package "Plone Site A" {
        [ZEO Server] as ZEO1
-       [HTTP Client] as HTTP1
-       [HTTP Client] as HTTP2
-       [AMQP Client] as AMQP1
+       [HTTP ZEO Client] as HTTP1
+       [HTTP ZEO Client] as HTTP2
+       [AMQP ZEO Client] as AMQP1
 
        ZEO1 -down- HTTP1
        ZEO1 -down- HTTP2
        ZEO1 -down- AMQP1
    }
 
-   Package "Zope/Plone Site B" {
+   Package "Plone Site B" {
        [ZEO Server] as ZEO2
-       [HTTP Client] as HTTP3
-       [HTTP Client] as HTTP4
-       [AMQP Client] as AMQP2
+       [HTTP ZEO Client] as HTTP3
+       [HTTP ZEO Client] as HTTP4
+       [AMQP ZEO Client] as AMQP2
 
        ZEO2 -up- HTTP3
        ZEO2 -up- HTTP4
@@ -80,7 +62,7 @@ Using this package, your AMQP-setup could look like this:
        [RabbitMQ]
    }
 
-   Package "Other Service" {
+   Package "Other Application" {
        [Service]
    }
 
@@ -101,6 +83,8 @@ Asynchronous RPC-like AMQP-messaging between your site and an external service
 may look like this:
 
 .. uml::
+
+   skinparam monochrome true
 
    site -> broker: request
    activate broker
