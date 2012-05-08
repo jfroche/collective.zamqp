@@ -82,7 +82,8 @@ class Consumer(grok.GlobalUtility):
         elif self.exchange_durable is None:
             self.exchange_durable = self.durable
 
-        self.queue = queue or self.queue
+        self.queue = queue or self.queue\
+            or getattr(self, 'grokcore.component.directive.name', None)
         if not self.routing_key:
             self.routing_key = self.queue
         if queue_durable is not None:
@@ -163,10 +164,8 @@ class Consumer(grok.GlobalUtility):
         self.on_ready_to_consume()
 
     def on_ready_to_consume(self):
-        queue = self.queue\
-            or getattr(self, 'grokcore.component.directive.name', None)
-        logger.info("Consumer ready to consume queue '%s'", queue)
-        self._channel.basic_consume(self.on_message_received, queue=queue)
+        logger.info("Consumer ready to consume queue '%s'", self.queue)
+        self._channel.basic_consume(self.on_message_received, queue=self.queue)
 
     def on_message_received(self, channel, method_frame, header_frame, body):
         message = createObject('AMQPMessage',
