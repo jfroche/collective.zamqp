@@ -39,11 +39,15 @@ class Message(object, VTM):
 
     state = None  # 'RECEIVED' is received and may be partially handled
                   # 'ACK' is received, handled and acknowledged
-                  # 'REQUEUED' is requeued because of ConflictError
-                  # 'ERROR' is received, but handling has ended with error
-                  # 'FAILED' is received, but handling has failed;
+                  # 'REJECTED' is rejected without requeuing
+                  # 'REQUEUED' is requeued, e.g. because of ConflictError
+                  # 'ERROR' is received, but consuming has ended with error;
+                  #         transaction-aware messages will transit to 'FAILED'
+                  # 'FAILED' consuming has ended with any failure;
                   #          message is left unacknowledged
     acknowledged = None
+    rejected = None
+    requeued = None
 
     _serialized_body = None
     _deserialized_body = None
@@ -76,7 +80,7 @@ class Message(object, VTM):
         return self._deserialized_body or self._serialized_body
 
     def ack(self):
-        """Mark the message as acknowledge.
+        """Mark the message as acknowledged.
 
         If the message is registered in a transaction, we defer the
         transmission of acknowledgement.
@@ -88,6 +92,20 @@ class Message(object, VTM):
             self._ack()
         self.acknowledged = True
 
+    def reject(self, requeue=True):
+        """Mark the message as rejected.
+
+        If the message is registered in a transaction, we defer the
+        transmission of rejection.
+
+        If the message is not registered in a transaction, we transmit
+        rejection immediately."""
+
+        if not self.rejected and not self.registered():
+            self._reject(requeue)
+        self.rejected = True
+        self.requeued = requeue
+
     def _ack(self):
         if self.channel:
             self.channel.basic_ack(
@@ -98,6 +116,21 @@ class Message(object, VTM):
             self.channel.tx_commit()  # min support for transactional channel
 
         logger.info("Handled message '%s' (status = '%s')",
+                    self.method_frame.delivery_tag, self.state)
+
+    def _reject(self, requeue=True):
+        if self.channel:
+            self.channel.basic_reject(
+                delivery_tag=self.method_frame.delivery_tag, requeue=requeue)
+            if requeue:
+                self.state = 'REQUEUED'
+            else:
+                self.state = 'REJECTED'
+
+        if self.channel and self.tx_select:
+            self.channel.tx_commit()  # min support for transactional channel
+
+        logger.info("Rejected message '%s' (status = '%s')",
                     self.method_frame.delivery_tag, self.state)
 
     def _abort(self):
@@ -131,6 +164,13 @@ class Message(object, VTM):
     def _finish(self):
         if self.acknowledged and not self.state == 'ACK':
             self._ack()
+        if self.rejected:
+            if self.state == 'ACK':
+                logger.warn("Message '%s' was both acknowledged and rejected "
+                            "(status = '%s'). Rejection was skipped",
+                            self.method_frame.delivery_tag, self.state)
+            elif self.state not in ['REJECTED', 'REQUEUED']:
+                self._reject(self.requeued)
 
     def sortKey(self, *ignored):
         return '~zamqp 9'  # always be the last one!

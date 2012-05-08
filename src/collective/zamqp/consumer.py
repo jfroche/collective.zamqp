@@ -249,9 +249,10 @@ class ConsumingView(BrowserView):
                     message.state = "ERROR"
                     raise
 
-        if not message.acknowledged:
-            logger.warning(("Nobody acknowledged message '%s' sent to exchange "
-                            "exchange '%s' with routing key '%s'"),
+        if not (message.acknowledged or message.rejected):
+            logger.warning(("Nobody acknowledged or rejected message '%s' "
+                            "sent to exchange exchange '%s' "
+                            "with routing key '%s'"),
                            delivery_tag, exchange, routing_key)
         else:
             logger.info(("Letting Zope to commit database transaction for "
