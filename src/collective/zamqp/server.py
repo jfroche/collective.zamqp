@@ -34,7 +34,7 @@ from ZPublisher.HTTPRequest import HTTPRequest
 
 from zope.interface import implements
 from zope.component import\
-    getUtility, getUtilitiesFor, provideHandler
+    getUtility, provideUtility, getUtilitiesFor, provideHandler
 
 from collective.zamqp.interfaces import\
     IBrokerConnection, IBeforeBrokerConnectEvent,\
@@ -178,15 +178,24 @@ class ConsumingServer(object):
                 # To support multiple sites (multiple consuming servers for
                 # a single connection) and still keep consumers simple, every
                 # consuming server must get own cloned instance of a consumer.
+                # Get the consumer configuration:
                 kwargs = consumerUtility.__dict__.copy() # instance properties
                 kwargs = dict(k for k in kwargs.items() if k[1] is not None)
-                # Substitute ${site_id} to support site specific queues.
+                # Substitute ${site_id} to support site specific queues:
                 substitutable = ("queue", "routing_key")
                 for key in [k for k in substitutable if k in kwargs]:
                     value = kwargs[key].replace("${site_id}", self.site_id)
                     kwargs[key] = value
-                # Clone the consumer.
-                self.consumers.append(consumerUtility.__class__(**kwargs))
+                substituted_name = name.replace("${site_id}", self.site_id)
+                # Clone the consumer
+                clonedConsumerUtility = consumerUtility.__class__(**kwargs)
+                if name != substituted_name:
+                    # When the consumer name contains substitution, we are
+                    # able to register site specific consumers for lookup!
+                    provideUtility(clonedConsumerUtility, IConsumer,
+                                   name=substituted_name)
+                # Append the cloned consumer:
+                self.consumers.append(clonedConsumerUtility)
 
         self._connection = getUtility(IBrokerConnection,
                                       name=self.connection_id)
