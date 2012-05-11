@@ -181,8 +181,8 @@ class ConsumingServer(object):
                 kwargs = consumerUtility.__dict__.copy() # instance properties
                 kwargs = dict(k for k in kwargs.items() if k[1] is not None)
                 # Substitute ${site_id} to support site specific queues.
-                subsitutable = ("queue", "routing_key")
-                for key in [k for k in subsitutable if k in kwargs]:
+                substitutable = ("queue", "routing_key")
+                for key in [k for k in substitutable if k in kwargs]:
                     value = kwargs[key].replace("${site_id}", self.site_id)
                     kwargs[key] = value
                 # Clone the consumer.
