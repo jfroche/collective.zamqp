@@ -13,7 +13,7 @@ import threading
 
 import grokcore.component as grok
 
-from zope.component import getUtility, provideHandler
+from zope.component import getUtility, queryUtility, provideHandler
 
 from collective.zamqp.interfaces import\
     IProducer, IBrokerConnection, IBeforeBrokerConnectEvent, ISerializer
@@ -98,9 +98,14 @@ class Producer(grok.GlobalUtility, VTM):
                        [IBeforeBrokerConnectEvent])
 
     def on_before_broker_connect(self, event=None):
-        self._connection = getUtility(IBrokerConnection,
-                                      name=self.connection_id)
-        self._connection.add_on_channel_open_callback(self.on_channel_open)
+        self._connection = queryUtility(IBrokerConnection,
+                                        name=self.connection_id)
+        if self._connection:
+            self._connection.add_on_channel_open_callback(self.on_channel_open)
+        else:
+            logger.warning(("Connection '%s' was not registered. "
+                            "Producer '%s' cannot be connected."),
+                            self.connection_id, self.routing_key)
 
     def on_channel_open(self, channel):
         self._channel = channel
