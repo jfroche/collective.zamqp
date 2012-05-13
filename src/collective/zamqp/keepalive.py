@@ -69,15 +69,16 @@ class PingProducer(Producer):
 
     grok.baseclass()
 
-    def set_queue(self, s):
-        pass
+    exchange = 'collective.zamqp'
 
-    def get_queue(self):
+    @property
+    def routing_key(self):
+        return self.queue
+
+    @property
+    def queue(self):
         return 'collective.zamqp.%s' % self.connection_id
 
-    exchange = 'collective.zamqp'
-    routing_key = property(get_queue, set_queue)
-    queue = property(get_queue, set_queue)
     serializer = 'text/plain'
     durable = False
 
@@ -90,13 +91,10 @@ class PingConsumer(Consumer):
 
     grok.baseclass()
 
-    def set_queue(self, s):
-        pass
-
-    def get_queue(self):
+    @property
+    def queue(self):
         return 'collective.zamqp.%s' % self.connection_id
 
-    queue = property(get_queue, set_queue)
     durable = False
 
     def on_message_received(self, channel, method_frame, header_frame, body):
