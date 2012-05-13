@@ -68,40 +68,68 @@ class Consumer(grok.GlobalUtility):
                  queue_arguments=None, auto_declare=None, auto_ack=None,
                  marker=None):
 
-        # Allow class variables to provide defaults
-        self.connection_id = connection_id or self.connection_id
+        # Allow class variables to provide defaults for:
 
-        self.exchange = exchange or self.exchange
-        self.routing_key = routing_key or self.routing_key
+        # connection_id
+        if connection_id is not None:
+            self.connection_id = connection_id
+        assert self.connection_id is not None,\
+               u"Consumer configuration is missing connection_id."
+
+        # exchange
+        if exchange is not None:
+            self.exchange = exchange
+
+        # routing_key
+        if routing_key is not None:
+            self.routing_key = routing_key
+
+        # durable (and the default for exchange_durable)
         if durable is not None:
             self.durable = durable
 
-        self.exchange_type = exchange_type or self.exchange_type
+        # exchange_type
+        if exchange_type is not None:
+            self.exchange_type = exchange_type
+        # exchange_durable
         if exchange_durable is not None:
             self.exchange_durable = exchange_durable
         elif self.exchange_durable is None:
             self.exchange_durable = self.durable
 
-        self.queue = queue or self.queue\
-            or getattr(self, 'grokcore.component.directive.name', None)
-        if not self.routing_key:
+        # queue
+        if self.queue is None and queue is None:
+            queue = getattr(self, 'grokcore.component.directive.name', None)
+        if queue is not None:
+            self.queue = queue
+        assert self.queue is not None,\
+               u"Consumer configuration is missing queue."
+        # routing_key
+        if self.routing_key is None:
             self.routing_key = self.queue
+        # queue_durable
         if queue_durable is not None:
             self.queue_durable = queue_durable
         elif self.queue_durable is None:
             self.queue_durable = self.durable
+        # queue_exclusive
         if queue_exclusive is not None:
             self.queue_exclusive = queue_exclusive
+        # queue_arguments
         if queue_arguments is not None:
             self.queue_arguments = queue_arguments
 
+        # auto_declare
         if auto_declare is not None:
             self.auto_declare = auto_declare
 
+        # auto_ack
         if auto_ack is not None:
             self.auto_ack = auto_ack
 
-        self.marker = marker or self.marker
+        # marker
+        if marker is not None:
+            self.marker = marker
 
         # BBB for affinitic.zamqp
         if getattr(self, "messageInterface", None):

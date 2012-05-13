@@ -214,23 +214,54 @@ class BrokerConnection(grok.GlobalUtility):
                  virtual_host=None, username=None, password=None,
                  heartbeat=None, tx_select=None):
 
-        # allow class variables to provide defaults
-        self.connection_id = connection_id or self.connection_id
+        # Allow class variables to provide defaults for:
 
-        self.hostname = hostname or self.hostname
-        self.port = port or self.port
-        self.virtual_host = virtual_host or self.virtual_host
+        # connection_id
+        if self.connection_id is None and connection_id is None:
+            connection_id =\
+                getattr(self, 'grokcore.component.directive.name', 'default')
+        if connection_id is not None:
+            self.connection_id = connection_id
 
-        self.username = username or self.username
-        self.password = password or self.password
+        # hostname
+        if hostname is not None:
+            self.hostname = hostname
+        assert self.hostname is not None,\
+               u"Connection configuration is missing hostname."
 
+        # port
+        if port is not None:
+            self.port = port
+        assert self.port is not None,\
+               u"Connection configuration is missing port."
+
+        # virtual_host
+        if virtual_host is not None:
+            self.virtual_host = virtual_host
+        assert self.virtual_host is not None,\
+               u"Connection configuration is missing virtual_host."
+
+        # username
+        if username is not None:
+            self.username = username
+        assert self.username is not None,\
+               u"Connection configuration is missing username."
+
+        # password
+        if password is not None:
+            self.password = password
+        assert self.password is not None,\
+               u"Connection configuration is missing password."
+
+        # heartbeat
         if heartbeat is not None:
             self.heartbeat = heartbeat
 
+        # tx_select
         if tx_select is not None:
             self.tx_select = tx_select
 
-        self._callbacks = CallbackManager()
+        self._callbacks = CallbackManager()  # callbacks are NOT thread-safe
         self._reconnection_delay = 1.0
 
         # BBB for affinitic.zamqp
@@ -260,10 +291,8 @@ class BrokerConnection(grok.GlobalUtility):
 
     def reconnect(self, conn=None):
         if not getattr(self, '_reconnection_timeout', None):
-            conn_id = self.connection_id or\
-                getattr(self, 'grokcore.component.directive.name', 'n/a')
             logger.info("Trying to reconnect connection '%s' in %s seconds",
-                        conn_id, self._reconnection_delay)
+                        self.connection_id, self._reconnection_delay)
             self._reconnection_timeout =\
                 AsyncoreScheduling(self.connect, self._reconnection_delay)
             self._reconnection_delay *= (random.random() * 0.5) + 1.0
