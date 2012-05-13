@@ -25,7 +25,11 @@ from pika.callback import CallbackManager
 import logging
 logger = logging.getLogger('collective.zamqp')
 
-threadlocal = threading.local()
+threadlocal = threading.local()  # storage for thread-safe attributes
+
+# XXX: The threadlocal storage was made module-level attribute for debugging
+# purporses (instance specific values are stored using repr() as their key),
+# but should eventually be moved into an instance property.
 
 
 class Producer(grok.GlobalUtility, VTM):
@@ -61,39 +65,73 @@ class Producer(grok.GlobalUtility, VTM):
 
         self._connection = None
 
-        # Allow class variables to provide defaults
-        self.connection_id = connection_id or self.connection_id
+        # Allow class variables to provide defaults for:
 
-        self.exchange = exchange or self.exchange
-        self.routing_key = routing_key or self.routing_key\
-            or getattr(self, 'grokcore.component.directive.name', None)
+        # connection_id
+        if connection_id is not None:
+            self.connection_id = connection_id
+        assert self.connection_id is not None,\
+               u"Producer configuration is missing connection_id."
+
+        # exchange
+        if exchange is not None:
+            self.exchange = exchange
+        assert self.exchange is not None,\
+               u"Producer configuration is missing exchange."
+
+        # routing_key
+        if self.routing_key is None and routing_key is None:
+            routing_key =\
+                getattr(self, 'grokcore.component.directive.name', None)
+        if routing_key is not None:
+            self.routing_key = routing_key
+        assert self.routing_key is not None,\
+               u"Producer configuration is missing routing_key."
+
+        # durable (and the default for exchange_durable)
         if durable is not None:
             self.durable = durable
 
-        self.exchange_type = exchange_type or self.exchange_type
+        # exchange_type
+        if exchange_type is not None:
+            self.exchange_type = exchange_type
+        # exchange_durable
         if exchange_durable is not None:
             self.exchange_durable = exchange_durable
         elif self.exchange_durable is None:
             self.exchange_durable = self.durable
 
-        self.queue = queue or self.queue
+        # queue
+        if queue:
+            self.queue = queue
+        # queue_durable
         if queue_durable is not None:
             self.queue_durable = queue_durable
         elif self.queue_durable is None:
             self.queue_durable = self.durable
+        # queue_exclusive
         if queue_exclusive is not None:
             self.queue_exclusive = queue_exclusive
+        # queue_arguments
         if queue_arguments is not None:
             self.queue_arguments = queue_arguments
 
+        # auto_declare
         if auto_declare is not None:
             self.auto_declare = auto_declare
 
-        self.reply_to = reply_to or self.reply_to
-        self.serializer = serializer or self.serializer
+        # reply_to
+        if reply_to is not None:
+            self.reply_to = reply_to
 
-        self._callbacks = CallbackManager()
+        # serializer
+        if serializer is not None:
+            self.serializer = serializer
 
+        # initialize callbacks
+        self._callbacks = CallbackManager()  # callbacks are NOT thread-safe
+
+        # subscribe to the connect initialization event
         provideHandler(self.on_before_broker_connect,
                        [IBeforeBrokerConnectEvent])
 
@@ -241,6 +279,8 @@ class Producer(grok.GlobalUtility, VTM):
         if getattr(self._connection, "tx_select", False):
             self._tx_commit()  # minimal support for transactional channel
 
+    # Define thread-safe VTM._v_registered:
+
     def _get_v_registered(self):
         if hasattr(threadlocal, "collective_zamqp_v_registered"):
             return threadlocal.collective_zamqp_v_registered.get(str(self))
@@ -254,6 +294,8 @@ class Producer(grok.GlobalUtility, VTM):
 
     _v_registered = property(_get_v_registered, _set_v_registered)
 
+    # Define thread-safe VMT._v_finalize:
+
     def _get_v_finalize(self):
         if hasattr(threadlocal, "collective_zamqp_v_finalize"):
             return threadlocal.collective_zamqp_v_finalize.get(str(self))
@@ -266,6 +308,8 @@ class Producer(grok.GlobalUtility, VTM):
         threadlocal.collective_zamqp_v_finalize[str(self)] = value
 
     _v_finalize = property(_get_v_finalize, _set_v_finalize)
+
+    # Define thread-safe self._pending_messages:
 
     def _get_pending_messages(self):
         if hasattr(threadlocal, "collective_zamqp_pending_messages"):
