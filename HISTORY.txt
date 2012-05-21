@@ -2,6 +2,24 @@ Changelog
 =========
 
 
+0.7.17 (2012-05-21)
+-------------------
+
+- Added transaction aware reject to message.
+- Added site_id-substitution support for consumer name to make consuming
+  service and site specific consumers available for lookup.
+- Fixed to not crash if connection if not defined. Just warn.
+- Fixed grok.name-magic to work more similarly in consumer (name is taken as
+  queue) as in producer (name is taken as routing_key).
+- Refactored ping to use simple dynamic properties for routing_key and queue.
+- Refactored producer, consumer and connection init to allow configuration
+  using simple dynamic properties.
+- Refactored producer, consumer and connection init to allow configuration
+  using simple dynamic properties.
+- Dropped 'magical' buildout name from keepalive's ping queues.
+- Removed 'magical' proxying of message body's properties before we rely on it.
+
+
 0.7.16 (2012-05-04)
 -------------------
 
