@@ -107,6 +107,7 @@ class Message(object, VTM):
         self.requeued = requeue
 
     def _ack(self):
+        self.acknowledged = True
         if self.channel:
             self.channel.basic_ack(
                 delivery_tag=self.method_frame.delivery_tag)
@@ -119,6 +120,8 @@ class Message(object, VTM):
                     self.method_frame.delivery_tag, self.state)
 
     def _reject(self, requeue=True):
+        self.rejected = True
+        self.requeued = requeue
         if self.channel:
             self.channel.basic_reject(
                 delivery_tag=self.method_frame.delivery_tag, requeue=requeue)
@@ -134,7 +137,8 @@ class Message(object, VTM):
                     self.method_frame.delivery_tag, self.state)
 
     def _abort(self):
-        self.acknowledged = False
+        if self.state != 'ACK':
+            self.acknowledged = False
         if self.state not in ('FAILED', 'REQUEUED'):
             # on transactional channel, rollback on abort
             if self.channel and self.tx_select:
