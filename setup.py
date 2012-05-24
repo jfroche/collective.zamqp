@@ -29,7 +29,8 @@ setup(name='collective.zamqp',
       },
       extras_require={
           'test': [
-              'zope.testing',
+              'rabbitfixture',
+              'plone.testing',
           ],
           'docs': [
               'sphinx',
