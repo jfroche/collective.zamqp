@@ -285,3 +285,5 @@ class ConsumingView(BrowserView):
             logger.info(("Letting Zope to commit database transaction for "
                          u"message '%s' (status = '%s')"),
                         delivery_tag, message.state)
+
+        return u''  # 200 No Content
