@@ -7,6 +7,7 @@ dist
 .installed.cfg
 .mr.developer.cfg
 develop-eggs
+downloads
 coverage
 docs
 eggs
