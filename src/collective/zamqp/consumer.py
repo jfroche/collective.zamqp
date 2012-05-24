@@ -45,7 +45,7 @@ class Consumer(grok.GlobalUtility):
 
     connection_id = None
 
-    exchange = None
+    exchange = ''
     routing_key = None
     durable = True
 

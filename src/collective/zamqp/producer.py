@@ -40,7 +40,7 @@ class Producer(grok.GlobalUtility, VTM):
 
     connection_id = None
 
-    exchange = None
+    exchange = ''
     routing_key = None
     durable = True
 
