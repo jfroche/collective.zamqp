@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+from zope.configuration import xmlconfig
+
 from plone.testing import Layer, z2
 
 from rabbitfixture.server import (
@@ -17,10 +19,10 @@ class FixedHostname(RabbitServerResources):
     @property
     def fq_nodename(self):
         """The node of the RabbitMQ that is being exported."""
-        return "%s@%s" % (self.nodename, self.hostname)
+        return '%s@%s' % (self.nodename, self.hostname)
 
 
-class RabbitLayer(Layer):
+class Rabbit(Layer):
 
     def setUp(self):
         # setup a RabbitMQ
@@ -33,22 +35,37 @@ class RabbitLayer(Layer):
     def tearDown(self):
         self['rabbit'].cleanUp()
 
-RABBIT_FIXTURE = RabbitLayer()
+RABBIT_FIXTURE = Rabbit()
+
+RABBIT_APP_INTEGRATION_TESTING = z2.IntegrationTesting(
+    bases=(RABBIT_FIXTURE, z2.STARTUP), name='RabbitAppFixture:Integration')
+RABBIT_APP_FUNCTIONAL_TESTING = z2.FunctionalTesting(
+    bases=(RABBIT_FIXTURE, z2.STARTUP), name='RabbitAppFixture:Functional')
 
 
-class RabbitAppLayer(Layer):
+class ZAMQP(Layer):
     defaultBases = (RABBIT_FIXTURE, z2.STARTUP)
 
     def setUp(self):
-        pass
+        import collective.zamqp
+        xmlconfig.file('testing.zcml', collective.zamqp,
+                       context=self['configurationContext'])
+
+        from zope.component import getUtility
+        from collective.zamqp.interfaces import IBrokerConnection
+        connection = getUtility(IBrokerConnection, name="test.connection")
+        connection.port = self['rabbit'].config.port
+
+        # from collective.zamqp import connection
+        # connection.connect_all()
 
     def tearDown(self):
         pass
 
-RABBIT_APP_FIXTURE = RabbitAppLayer()
 
+ZAMQP_FIXTURE = ZAMQP()
 
-RABBIT_APP_INTEGRATION_TESTING = z2.IntegrationTesting(
-    bases=(RABBIT_APP_FIXTURE,), name="RabbitAppFixture:Integration")
-RABBIT_APP_FUNCTIONAL_TESTING = z2.FunctionalTesting(
-    bases=(RABBIT_APP_FIXTURE,), name="RabbitAppFixture:Functional")
+ZAMQP_INTEGRATION_TESTING = z2.IntegrationTesting(
+    bases=(ZAMQP_FIXTURE,), name='ZAMQPFixture:Integration')
+ZAMQP_FUNCTIONAL_TESTING = z2.FunctionalTesting(
+    bases=(ZAMQP_FIXTURE,), name='ZAMQPFixture:Functional')
