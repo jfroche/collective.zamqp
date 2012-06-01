@@ -31,6 +31,8 @@ setup(name='collective.zamqp',
           'test': [
               'rabbitfixture',
               'plone.testing',
+              'zope.configuration',
+              'msgpack-python',
           ],
           'docs': [
               'sphinx',
